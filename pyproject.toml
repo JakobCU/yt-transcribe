@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "yt-transcribe"
+version = "0.1.0"
+description = "Transcribe YouTube videos with speaker diarization (Whisper + pyannote)"
+requires-python = ">=3.10"
+dependencies = [
+    "openai-whisper",
+    "pyannote.audio>=4.0",
+    "yt-dlp",
+    "python-dotenv",
+    "soundfile",
+    "tqdm",
+]
+
+[project.scripts]
+yt-transcribe = "yt_transcribe.cli:main"
