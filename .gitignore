@@ -9,3 +9,4 @@ build/
 *.mp3
 *.webm
 yt-dlp.exe
+.claude/
