@@ -167,6 +167,14 @@ class TranscribeGUI:
 
         env = os.environ.copy()
         env["PYTHONIOENCODING"] = "utf-8"
+        # The package isn't pip-installed; it's imported from the repo root.
+        # Since cwd is the audio file's folder, put the repo root on PYTHONPATH
+        # so `from yt_transcribe.cli import main` resolves regardless of cwd.
+        existing_pp = env.get("PYTHONPATH", "")
+        env["PYTHONPATH"] = (
+            f"{PROJECT_ROOT}{os.pathsep}{existing_pp}" if existing_pp
+            else str(PROJECT_ROOT)
+        )
 
         try:
             self.proc = subprocess.Popen(

@@ -8,7 +8,9 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-load_dotenv()
+# Load .env from the repo root (one level up from this package), not the cwd —
+# the GUI runs with cwd set to the audio file's folder, where no .env exists.
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
 
 def is_url(s: str) -> bool:
