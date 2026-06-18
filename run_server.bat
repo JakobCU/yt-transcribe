@@ -1,0 +1,17 @@
+@echo off
+REM Startet den Transkript-Studio-Server (liefert Frontend + Pipeline + LLM).
+REM Frontend braucht NICHT separat gestartet zu werden -- alles unter einer URL.
+cd /d "%~dp0"
+
+set PY=C:\Users\TX.Lab\miniconda3\envs\yt-transcribe\python.exe
+
+REM Optional zum Testen ohne GPU / ohne API-Key (Zeilen einkommentieren):
+REM set TRANSCRIBE_FAKE=1
+REM set LLM_FAKE=1
+
+echo.
+echo   transkript::studio  ->  http://127.0.0.1:8000/
+echo   (Strg+C zum Beenden)
+echo.
+"%PY%" -m uvicorn server.app:app --host 127.0.0.1 --port 8000
+pause

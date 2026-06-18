@@ -789,13 +789,14 @@ async function initBackend(){
     if(me)enterServerMode(me); else showAuthGate();
   }catch(_){/* offline mode: no backend */}
 }
-$('transcribeBtn').onclick=()=>{
+function openTxModal(){
   const diar=$('txDiar'),note=$('txDiarNote');
   if(!backend.diarization){diar.checked=false;diar.disabled=true;note.textContent='(kein HF-Token am Server — nur Transkription)';}
   else{diar.disabled=false;note.textContent='';}
   if(backend.fake)note.textContent='(Server im Test-Modus — liefert ein Fake-Transkript)';
   $('txModal').classList.add('show');
-};
+}
+$('transcribeBtn').onclick=openTxModal;
 function closeTxModal(){$('txModal').classList.remove('show');}
 $('txCancel').onclick=closeTxModal;
 $('txModal').addEventListener('click',e=>{if(e.target.id==='txModal')closeTxModal();});
