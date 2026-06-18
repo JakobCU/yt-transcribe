@@ -20,6 +20,7 @@ let headerText='', transcriptId='', transcriptName='';
 let docMeta={};            // {docId,rev,createdAt,updatedAt,media}
 let codingCfg={mode:'inductive',codebookName:'',codebookVersion:1};  // induktiv | deduktiv | hybrid
 let serverDoc=null, currentUser=null, pendingProjectId=null;  // team-server mode (null = offline/localStorage)
+let pendingAudioFile=null;  // file picked for transcription → auto-loaded into the player afterwards
 
 let activeIndex=-1, lastFollow=-1, saveTimer=null;
 let followOn=true, autoRewind=true, loopOn=false, editSeek=true;
@@ -802,6 +803,7 @@ $('txCancel').onclick=closeTxModal;
 $('txModal').addEventListener('click',e=>{if(e.target.id==='txModal')closeTxModal();});
 $('txStart').onclick=async()=>{
   const f=$('txFile').files[0];if(!f){toast('Bitte eine Audio-/Videodatei wählen');return;}
+  pendingAudioFile=f;  // keep it to auto-load into the player once transcription finishes
   const fd=new FormData();fd.append('audio',f);fd.append('model',$('txModel').value);
   fd.append('language',$('txLang').value.trim());fd.append('diarize',$('txDiar').checked?'true':'false');
   fd.append('device',$('txDevice').value);
@@ -834,11 +836,14 @@ async function loadJobResult(jobId,fname){
   try{
     const r=await fetch('/api/jobs/'+jobId+'/result');if(!r.ok)throw new Error('Ergebnis nicht abrufbar ('+r.status+')');
     const res=await r.json();
-    if(res.document_id){hideJobBanner();pendingProjectId=null;await loadProjects();openServerDocument(res.document_id);toast('Transkript erstellt'+(res.device?' · '+res.device.toUpperCase():'')+(res.diarized?' · mit Sprechern':''));return;}
+    if(res.document_id){hideJobBanner();pendingProjectId=null;await loadProjects();await openServerDocument(res.document_id);
+      if(pendingAudioFile){loadMedia(pendingAudioFile);pendingAudioFile=null;}
+      toast('Transkript erstellt'+(res.device?' · '+res.device.toUpperCase():'')+(res.diarized?' · mit Sprechern':''));return;}
     if(!res||!res.text)throw new Error('Leeres Ergebnis');
     showJobBanner('Fertig — lade Transkript…',1,false);
     const name=(res.name||fname||'transkript').replace(/\.[^.]+$/,'')+'.txt';
     loadTranscript(res.text,name);hideJobBanner();
+    if(pendingAudioFile){loadMedia(pendingAudioFile);pendingAudioFile=null;}
     toast('Transkript geladen'+(res.device?' · '+res.device.toUpperCase():'')+(res.diarized?' · mit Sprechern':' · ohne Diarization'));
   }catch(err){showJobBanner('Fehler beim Laden: '+err.message,0,true);}
 }
