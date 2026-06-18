@@ -66,6 +66,33 @@ only; no server-side SRT). The same `src/` frontend is served here and also
 builds into the offline single-file (`tool/build.py`) — the offline mode simply
 has no backend and hides the transcribe button.
 
+## Team mode (auth + projects + DB)
+
+Persistence lives in SQLite (`server/data/app.db`, `DATABASE_URL` to switch to
+Postgres). Registration is open but restricted to `ALLOWED_EMAIL_DOMAINS`
+(default `ait.ac.at`); the first user becomes admin. Login is a server-side
+session cookie (argon2 passwords).
+
+Sharing model: a **project** groups transcripts + a shared **codebook** +
+members (admin / coder). A **document** is the shared, optimistic-locked
+transcript text; **codes/highlights/comments are per user** (`UserLayer`), so
+coders annotate the same material independently (intercoder / LLM-vs-human).
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| POST | `/api/auth/register` · `/login` · `/logout` | accounts; GET `/api/auth/me` |
+| GET/POST | `/api/projects` | list / create projects |
+| GET | `/api/projects/{id}` | members + role + codebook |
+| POST | `/api/projects/{id}/members` | add member (admin) |
+| GET/PUT | `/api/projects/{id}/codebook` | shared codebook |
+| GET/POST | `/api/projects/{id}/documents` | list / create (from text) |
+| GET | `/api/documents/{id}` | merged v2 doc (shared + codebook + caller's layer) |
+| PUT | `/api/documents/{id}/text` | save shared text (optimistic `rev` → 409) |
+| PUT | `/api/documents/{id}/layer` | save the caller's codes/highlights/comments |
+
+`/api/transcribe` (with a `project_id`) persists its result as a project
+document; `/api/transcribe` and `/api/code` now require login.
+
 ## Notes / limits (current single-process cut)
 
 - Upload cap 5 GiB; the job registry keeps the last 200 jobs in memory.

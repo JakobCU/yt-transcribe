@@ -20,3 +20,5 @@ tool/sample/
 tool/dist/
 # uploaded audio handled by the backend
 server/media/
+# sqlite database + data
+server/data/

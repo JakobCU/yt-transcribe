@@ -25,6 +25,8 @@ server = [
     "python-multipart",
     "anthropic",   # Claude provider for LLM coding (optional; key in .env)
     "requests",    # Ollama provider (local LLM)
+    "sqlalchemy>=2.0",  # team server: persistence
+    "argon2-cffi",      # team server: password hashing
 ]
 
 [project.scripts]

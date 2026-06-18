@@ -18,11 +18,11 @@ import uuid
 from pathlib import Path
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
-from server import coding, jobs, llm, pipeline
+from server import auth, coding, db, documents, jobs, llm, pipeline, projects
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 FRONTEND_DIR = REPO_ROOT / "tool" / "src"
@@ -33,9 +33,28 @@ MAX_UPLOAD = 5 * 1024 ** 3   # 5 GiB cap so a client can't fill the disk
 SSE_MAX_SECONDS = 6 * 3600   # stop streaming a single job after 6h
 
 load_dotenv(REPO_ROOT / ".env")
+db.init_db()
 
 app = FastAPI(title="Transkript-Checker")
-jobs.register_runner("transcribe", pipeline.run)
+app.include_router(auth.router)
+app.include_router(projects.router)
+app.include_router(documents.router)
+
+
+def _transcribe_runner(payload: dict, progress) -> dict:
+    """Run the pipeline, then persist the result as a project document (if a
+    project was given) so it survives the client closing."""
+    res = pipeline.run(payload, progress)
+    pid = payload.get("project_id")
+    if pid:
+        with db.SessionLocal() as s:
+            d = documents.create_document_from_text(
+                s, pid, payload.get("name"), res["text"], created_by=payload.get("user_id", ""))
+            res["document_id"] = d.id
+    return res
+
+
+jobs.register_runner("transcribe", _transcribe_runner)
 jobs.register_runner("code", coding.run)
 
 
@@ -55,6 +74,7 @@ def health():
         "diarizationAvailable": _has_hf_token(),
         "fake": os.environ.get("TRANSCRIBE_FAKE") == "1",
         "llm": llm.available_providers(),
+        "auth": {"allowedDomains": auth.allowed_domains()},
     }
 
 
@@ -64,7 +84,12 @@ async def transcribe(
     model: str = Form("large-v3"),
     language: str = Form(""),
     diarize: bool = Form(True),
+    project_id: str = Form(None),
+    user: db.User = Depends(auth.require_user),
+    s=Depends(auth.get_db),
 ):
+    if project_id:
+        projects.member_or_403(s, user, project_id)
     safe = _safe_name(audio.filename)
     dest = MEDIA_DIR / f"{uuid.uuid4().hex}_{safe}"
     total = 0
@@ -85,12 +110,14 @@ async def transcribe(
         "model": model,
         "language": language.strip() or None,
         "diarize": diarize,
+        "project_id": project_id or None,
+        "user_id": user.id,
     })
     return {"job_id": job_id}
 
 
 @app.post("/api/code")
-def code(body: dict):
+def code(body: dict, user: db.User = Depends(auth.require_user)):
     """Start an LLM coding job. body: {codes[], segments[], provider, model, context, name}."""
     if not body.get("codes"):
         raise HTTPException(400, "codes (codebook) required")
