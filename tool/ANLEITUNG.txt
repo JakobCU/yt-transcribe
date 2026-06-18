@@ -1,0 +1,89 @@
+TRANSKRIPT-CHECKER — Kurzanleitung
+==================================
+
+Werkzeug zum Prüfen/Korrigieren von Transkripten gegen die Tonaufnahme,
+zum Markieren/Kommentieren und zum thematischen Kodieren.
+Alles läuft lokal im Browser. Es wird NICHTS hochgeladen — Audio und Text
+bleiben auf deinem Rechner.
+
+SO GEHT'S
+---------
+1. Die .html-Datei per Doppelklick öffnen (am besten Chrome oder Edge).
+   Ist ein Transkript eingebettet, erscheint es sofort; sonst oben
+   "📄 Transkript laden" wählen.
+2. Oben "🔊 Audio/Video laden" klicken und die Aufnahme auswählen.
+3. Loslegen — siehe unten. Im Tool zeigt "?" oben rechts die Tasten-Hilfe.
+
+
+KORRIGIEREN
+-----------
+- In den Text klicken und tippen. Wird automatisch im Browser gespeichert.
+- Klick auf den Zeitstempel (z.B. 00:00:16) springt die Audio an die Stelle.
+- Rote Markierungen [?? Audio prüfen] = vom Computer unsichere Stellen.
+  Nach dem Prüfen/Korrigieren die [..]-Markierung einfach aus dem Text löschen.
+- Beim Überfahren einer Zeile erscheinen rechts kleine Knöpfe:
+  geprüft / Zeile teilen / mit voriger verbinden / löschen.
+
+WICHTIGSTE TASTEN
+  Esc                  Abspielen / Pause (geht auch beim Tippen)
+  Strg + Enter         Zeile als "geprüft" abhaken und zur nächsten springen
+  Alt + N / Alt + P    zur nächsten / vorigen unsicheren Stelle [?? Audio prüfen]
+  Strg + Pfeil links/rechts   3 Sekunden zurück / vor
+  Strg + Pfeil hoch/runter    schneller / langsamer
+  Enter / Tab (im Text)       zur nächsten Zeile
+  Strg + S             Export .txt
+
+
+SPRECHER
+--------
+- Farbiger Balken links + Auswahlfeld = Sprecher der Zeile.
+- Über das Auswahlfeld einer Zeile den Sprecher wechseln oder
+  "＋ neuer Sprecher…" anlegen.
+- Im Aufklapp-Bereich "Info & Sprecher-Legende" auf einen Sprecher klicken,
+  um ihn umzubenennen (gilt überall). Vergibst du einen Namen, der schon
+  existiert, werden die beiden Sprecher zusammengeführt.
+
+
+MARKIEREN & KOMMENTIEREN
+------------------------
+- Text mit der Maus auswählen → es erscheint eine kleine Leiste:
+    farbige Punkte = Stelle farbig markieren (5 Farben)
+    🏷 Code        = der Stelle einen Code zuweisen (siehe unten)
+    💬 Notiz       = Kommentar/Notiz an die Stelle hängen
+    ⌫              = Markierung(en) in der Auswahl entfernen
+- Kommentare: oben "💬" öffnet das Kommentar-Panel — dort siehst du alle
+  Notizen, springst per Klick zur Stelle, kannst bearbeiten, auf "erledigt"
+  setzen oder löschen.
+- Markierungen und Kommentare bleiben an ihrer Textstelle "kleben", auch wenn
+  du den Text drumherum änderst.
+
+
+THEMATISCHES KODIEREN (🏷 Codes)
+--------------------------------
+- Oben "🏷" öffnet das Code-Panel.
+- Modus (oben im Panel):
+    Induktiv  — du legst Codes am Material an, sie entstehen beim Lesen.
+    Deduktiv  — feste Kategorien sind vorgegeben (Codebook); neu angelegte
+                Codes landen erst als "Vorschlag", bis du sie übernimmst.
+    Hybrid    — beides.
+- Codieren: Text auswählen → 🏷 Code → bestehenden Code wählen oder
+  "＋ Neuer Code" tippen. Eine Stelle kann mehrere Codes bekommen.
+- Im Panel je Code: Klick = alle kodierten Stellen anzeigen ("alle Stellen"),
+  ＋ Unter-Code, ✎ bearbeiten (Name/Definition/Farbe), 🗑 löschen.
+- Codebook = die Datei, in der das "Wie" des Kodierens steht (Codes mit
+  Definition, Wann-anwenden / Wann-nicht, Beispielen). Im Panel:
+    "⬆︎ Codebook" lädt eine .yaml-Datei (z.B. codebook-example.yaml),
+    "⬇︎ Codebook" exportiert den aktuellen Stand als .yaml zum Weitergeben/Anpassen.
+
+
+SPEICHERN & EXPORT
+------------------
+- Dein Stand bleibt automatisch erhalten — beim erneuten Öffnen ist alles
+  wieder da (gebunden an genau diesen Rechner + Browser).
+- "⬇︎ Export .txt" = korrigierte Endfassung.
+- "⋯" bietet zusätzlich: reine Lesefassung, SRT-Untertitel, und einen
+  vollständigen JSON-Snapshot (inkl. Sprecher, Markierungen, Kommentare,
+  Codes) zum Sichern oder Weiterarbeiten an einem anderen Rechner.
+
+
+Bei Fragen einfach melden.

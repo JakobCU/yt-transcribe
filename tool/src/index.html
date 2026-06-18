@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Transkript-Checker</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="topbar">
+  <div class="grp">
+    <button class="btn" id="loadTxt">📄 Transkript laden</button>
+    <button class="btn" id="loadAud">🔊 Audio/Video laden</button>
+    <button class="btn primary" id="transcribeBtn" style="display:none" title="Aufnahme automatisch transkribieren">🎙 Transkribieren</button>
+  </div>
+  <div class="sep"></div>
+  <div class="grp">
+    <button class="btn" id="playBtn" title="Play/Pause (Esc)">▶︎</button>
+    <span class="pill" id="timePill">–:– / –:–</span>
+    <div class="rateWrap"><span>Tempo</span><b id="rateVal">1.0×</b></div>
+  </div>
+  <div class="sep"></div>
+  <div class="grp">
+    <button class="btn on" id="followBtn" title="Mit Audio mitscrollen">Follow</button>
+    <button class="btn on" id="rewindBtn" title="Beim Pausieren kurz zurückspulen">Auto-Rewind</button>
+    <button class="btn" id="loopBtn" title="Aktuelles Segment wiederholen">Loop</button>
+    <button class="btn on" id="editSeekBtn" title="Beim Editieren Audio zur Zeile springen">Edit→Seek</button>
+  </div>
+  <div class="sep"></div>
+  <div class="grp">
+    <input type="search" id="search" placeholder="Suchen…">
+    <select class="flt" id="filter">
+      <option value="all">Alle Zeilen</option>
+      <option value="unverified">Nur ungeprüfte</option>
+      <option value="marker">Nur mit Marker</option>
+    </select>
+  </div>
+  <div class="sep"></div>
+  <div class="grp">
+    <span class="pill" id="progress"><b>0</b>/0 geprüft · <b>0</b> Marker</span>
+    <button class="btn primary" id="exportTxt" title="Export .txt (Strg+S)">⬇︎ Export .txt</button>
+    <button class="btn" id="moreExport">⋯</button>
+    <button class="btn" id="codesBtn" title="Codes / thematisches Kodieren">🏷 <span id="codeCount">0</span></button>
+    <button class="btn" id="commentsBtn" title="Kommentare anzeigen">💬 <span id="cCount">0</span></button>
+    <button class="btn" id="helpBtn" title="Hilfe (?)">?</button>
+  </div>
+</div>
+
+<div id="playerWrap">
+  <video id="player" class="audioOnly" controls></video>
+  <span id="noMedia">Kein Audio geladen — „🔊 Audio/Video laden" (empfohlen: die <code>.mp4</code>). Datei bleibt lokal, nichts wird hochgeladen.</span>
+</div>
+
+<div class="banner" id="restoreBanner">
+  <span id="restoreMsg"></span>
+  <button class="btn" id="resetState">Auf Original zurücksetzen</button>
+</div>
+
+<div class="banner" id="jobBanner">
+  <span id="jobMsg">…</span>
+  <div class="jobbar"><div id="jobFill"></div></div>
+  <button class="btn" id="jobCancel" style="display:none">Schließen</button>
+</div>
+
+<div id="info"></div>
+<main id="transcript"></main>
+
+<div id="drop">Datei hier ablegen (Transkript .txt oder Audio/Video)</div>
+<div id="toast"></div>
+
+<!-- transcribe options modal (backend mode) -->
+<div id="txModal"><div class="card">
+  <h2>🎙 Aufnahme transkribieren</h2>
+  <p class="hint">Audio/Video auswählen — wird auf dem Server transkribiert (Whisper) und ggf. nach Sprechern getrennt (Diarization). Das Ergebnis öffnet danach direkt hier.</p>
+  <div class="txrow"><label>Datei</label><input type="file" id="txFile" accept="audio/*,video/*"></div>
+  <div class="txrow"><label>Modell</label>
+    <select id="txModel">
+      <option value="tiny">tiny (schnell, grob)</option>
+      <option value="base">base</option>
+      <option value="small">small</option>
+      <option value="medium">medium</option>
+      <option value="large-v3" selected>large-v3 (beste Qualität)</option>
+    </select></div>
+  <div class="txrow"><label>Sprache</label><input type="text" id="txLang" placeholder="auto-erkennen (z.B. de, en)"></div>
+  <div class="txrow"><label>Sprecher</label><label class="inl"><input type="checkbox" id="txDiar" checked> Diarization <span class="hint" id="txDiarNote"></span></label></div>
+  <div class="txactions">
+    <button class="btn" id="txCancel">Abbrechen</button>
+    <button class="btn primary" id="txStart">Start</button>
+  </div>
+</div></div>
+
+<!-- floating toolbar shown on text selection -->
+<div id="selbar"></div>
+
+<!-- comments / notes side panel -->
+<aside id="cpanel">
+  <header><span>💬 Kommentare</span><button class="btn" id="cpanelClose">✕</button></header>
+  <div class="clist" id="clist"></div>
+</aside>
+
+<!-- codes / thematic coding side panel -->
+<aside id="codepanel">
+  <header>
+    <span>🏷 Codes</span>
+    <button class="btn" id="codepanelClose">✕</button>
+  </header>
+  <div class="cpbar">
+    <label class="modewrap" title="Induktiv: Codes entstehen am Material · Deduktiv: feste Kategorien vorgeben · Hybrid: beides">
+      Modus
+      <select id="codeMode">
+        <option value="inductive">Induktiv (bottom-up)</option>
+        <option value="deductive">Deduktiv (vorgegeben)</option>
+        <option value="hybrid">Hybrid</option>
+      </select>
+    </label>
+    <div class="cpbtns">
+      <button class="btn" id="newCodeBtn" title="Neuen Code anlegen">＋ Code</button>
+      <button class="btn" id="cbLoad" title="Codebook (YAML) laden">⬆︎ Codebook</button>
+      <button class="btn" id="cbSave" title="Codebook (YAML) exportieren">⬇︎ Codebook</button>
+    </div>
+    <div class="cpllm" id="cpllm" style="display:none">
+      <select id="llmProvider" title="LLM-Backend"></select>
+      <button class="btn primary" id="llmCodeBtn" title="Transkript automatisch mit dem Codebook kodieren">🤖 KI-Kodieren</button>
+      <button class="btn" id="reviewBtn" title="KI-Vorschläge prüfen">✨ Vorschläge <span id="suggestCount">0</span></button>
+    </div>
+  </div>
+  <div class="ctree" id="ctree"></div>
+  <div class="cretrieve" id="cretrieve"></div>
+</aside>
+<div id="help"><div class="card">
+  <h2>Tastatur-Shortcuts</h2>
+  <table>
+    <tr><td><kbd>Esc</kbd></td><td>Play / Pause (auch beim Tippen)</td></tr>
+    <tr><td><kbd>Strg</kbd>+<kbd>←</kbd> / <kbd>→</kbd></td><td>3 s zurück / vor</td></tr>
+    <tr><td><kbd>Strg</kbd>+<kbd>↑</kbd> / <kbd>↓</kbd></td><td>schneller / langsamer (0.5×–2×)</td></tr>
+    <tr><td><kbd>Strg</kbd>+<kbd>Enter</kbd></td><td>Zeile „geprüft" + zur nächsten ungeprüften</td></tr>
+    <tr><td><kbd>Alt</kbd>+<kbd>N</kbd> / <kbd>P</kbd></td><td>nächster / vorheriger <span class="mk check">[?? …]</span>-Marker</td></tr>
+    <tr><td><kbd>Tab</kbd> / <kbd>Shift</kbd>+<kbd>Tab</kbd></td><td>nächste / vorherige Zeile editieren</td></tr>
+    <tr><td><kbd>Strg</kbd>+<kbd>S</kbd></td><td>Export .txt</td></tr>
+    <tr><td><kbd>?</kbd></td><td>diese Hilfe</td></tr>
+  </table>
+  <p class="hint">Klick auf den Zeitstempel springt die Audio an die Stelle. Klick in den Text zum Editieren.
+  <b>Text mit der Maus auswählen</b> → Leiste zum Markieren (Farben), Kodieren (🏷 Code) und Kommentieren (💬 Notiz).
+  Oben <b>🏷</b> = Code-Panel (Modus induktiv/deduktiv/hybrid, Codebook laden/exportieren), <b>💬</b> = Kommentare.
+  Fortschritt wird automatisch im Browser gespeichert (lokal).</p>
+  <div style="text-align:right"><button class="btn primary" id="helpClose">Schließen</button></div>
+</div></div>
+
+<!-- Offline build inlines a transcript here; empty when served by the backend. -->
+<script id="embedded-transcript" type="text/plain"></script>
+<!-- ===== ENDE EINGEBETTETES TRANSKRIPT ===== -->
+
+<script src="vendor/js-yaml.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

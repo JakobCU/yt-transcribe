@@ -1,0 +1,142 @@
+codebook:
+  name: "GAIN WS2 — Grenzüberschreitungen im Rettungsdienst"
+  version: 1
+  # mode: induktiv (bottom-up, Codes entstehen am Material) | deduktiv (feste Kategorien
+  # vorgegeben) | hybrid. Beim Laden im Tool wird dieser Modus übernommen.
+  mode: deductive
+  # Jeder Code: stabile id (Slug — Umbenennen verwaist keine Kodierungen) + name + color.
+  # definition = was ist gemeint; inclusion = WANN anwenden (treibt Recall);
+  # exclusion = wann NICHT (treibt Precision); examples = Ankerbeispiele.
+  # Diese Felder steuern später auch das LLM-gestützte Kodieren.
+  codes:
+    - id: uebergriff
+      name: "Übergriff / Grenzüberschreitung"
+      color: "#dc2626"
+      definition: "Oberkategorie für geschilderte Grenzüberschreitungen gegenüber Rettungspersonal."
+      children:
+        - id: ueb-verbal-sexuell
+          name: "Verbal-sexuell"
+          color: "#db2777"
+          definition: "Sexualisierte verbale Übergriffe (Anmache, anzügliche Sprüche, sexuelle Aufforderungen)."
+          inclusion: >
+            Anwenden bei sexualisierten Kommentaren, Anmache, anzüglichen Sprüchen oder
+            sexuellen Aufforderungen gegenüber Mitarbeitenden.
+          exclusion: >
+            NICHT für körperliche sexuelle Handlungen (separat) oder allgemeine
+            Beschimpfungen ohne sexuellen Bezug (verwende verbale-aggression).
+          examples:
+            - "Hey Baby, Hey Puppe, bist du scharf? Hast du einen Freund?"
+            - "ob ich mich jetzt nicht hier ausziehen möchte"
+        - id: ueb-koerperlich
+          name: "Körperliche Gewalt"
+          color: "#b91c1c"
+          definition: "Körperliche Angriffe oder Gewaltandrohung gegen Personal."
+          inclusion: "Schläge, Werfen von Gegenständen, körperliche Bedrohung."
+          exclusion: "Rein verbale Drohungen ohne körperliche Komponente."
+          examples:
+            - "der Fernseher ist uns entgegengekommen"
+            - "und ihr eine reingehaut hat damals"
+        - id: ueb-rassismus
+          name: "Rassismus"
+          color: "#ea580c"
+          definition: "Rassistische Beschimpfungen oder Diskriminierung (gegen Personal oder durch Personal)."
+          inclusion: "Rassistische Schimpfwörter, Ablehnung von Personal wegen Herkunft/Hautfarbe."
+          examples:
+            - "was musst du da, du Murl, du brauchst mich nicht holen"
+        - id: ueb-verbal-aggression
+          name: "Verbale Aggression"
+          color: "#f59e0b"
+          definition: "Nicht-sexuelle/nicht-rassistische Beschimpfungen, Anschreien, Drohungen."
+          examples:
+            - "Heast Geschissener fahr weg, I siach nix"
+    - id: betroffene
+      name: "Betroffene Person"
+      color: "#2563eb"
+      definition: "Wer ist Ziel des Übergriffs?"
+      children:
+        - id: bet-kollegin
+          name: "Kollegin (weiblich)"
+          color: "#3b82f6"
+          definition: "Übergriff richtet sich gegen eine Kollegin / weibliches Personal."
+        - id: bet-eigene
+          name: "Erzählende Person selbst"
+          color: "#0891b2"
+          definition: "Erzählende:r war selbst Ziel."
+        - id: bet-patient
+          name: "Patient:in / extern"
+          color: "#0d9488"
+          definition: "Übergriff betrifft Patient:innen oder Externe."
+    - id: kontext
+      name: "Einsatzkontext"
+      color: "#65a30d"
+      definition: "In welchem Setting passiert die Schilderung?"
+      children:
+        - id: kontext-einsatz
+          name: "Notfalleinsatz"
+          color: "#16a34a"
+          definition: "Akuter Rettungs-/Notfalleinsatz."
+        - id: kontext-transport
+          name: "Transport"
+          color: "#84cc16"
+          definition: "Kranken-/Heimtransport."
+        - id: kontext-schaulustige
+          name: "Schaulustige / Verkehr"
+          color: "#a16207"
+          definition: "Konflikte mit Unbeteiligten, Schaulustigen, anderen Verkehrsteilnehmern."
+          examples:
+            - "ein Auto von uns mit Blaulicht in einer Strasse gestanden ist ... beschimpft"
+        - id: kontext-psychiatrie
+          name: "Psychiatrie / psych. Erkrankung"
+          color: "#7c3aed"
+          definition: "Situationen mit psychisch erkrankten Personen."
+    - id: bewaeltigung
+      name: "Umgang / Bewältigung"
+      color: "#9333ea"
+      definition: "Wie gehen die Erzählenden mit den Situationen um?"
+      children:
+        - id: bew-weglachen
+          name: "Weglachen / Humor"
+          color: "#a855f7"
+          definition: "Situation wird durch Humor/Lachen bewältigt oder bagatellisiert."
+          examples:
+            - "ich lache drüber ... ich bin zum Glück nicht verpflichtet"
+        - id: bew-einschreiten
+          name: "Einschreiten / Schützen"
+          color: "#c026d3"
+          definition: "Aktives Eingreifen zum Schutz von Kolleg:innen."
+        - id: bew-polizei
+          name: "Polizei hinzuziehen"
+          color: "#6d28d9"
+          definition: "Deeskalation/Schutz über die Polizei."
+        - id: bew-distanz
+          name: "Professionelle Distanz"
+          color: "#4f46e5"
+          definition: "Bewusst professionelle, 'geschlechtslose' Haltung im Dienst."
+          examples:
+            - "wenn du im Dienst bist, bist du geschlechtslos"
+    - id: haltung
+      name: "Haltung / Reflexion"
+      color: "#e11d48"
+      definition: "Reflexionen über Wandel von Normen, Generationen, was heute (nicht) geht."
+      children:
+        - id: haltung-generation
+          name: "Generationenkonflikt"
+          color: "#f43f5e"
+          definition: "Verweise auf Unterschiede zwischen früher und heute / zwischen Generationen."
+        - id: haltung-nogo
+          name: "Heute ein No-Go"
+          color: "#be123c"
+          definition: "Explizite Markierung, dass etwas heute nicht mehr akzeptabel ist."
+    - id: projekt
+      name: "Projekt-Meta (AR/XR Co-Design)"
+      color: "#475569"
+      definition: "Meta-Ebene des Workshops: Aufgabenstellung, Lego/AR-Nachbau, Methodisches."
+      children:
+        - id: projekt-arxr
+          name: "AR/XR-Hintergrund"
+          color: "#64748b"
+          definition: "Erklärungen zum AR/XR-/Forschungshintergrund."
+        - id: projekt-lego
+          name: "Lego-Szene bauen"
+          color: "#94a3b8"
+          definition: "Die Lego-Nachbau-Aufgabe und ihre Aushandlung."

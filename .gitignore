@@ -7,6 +7,16 @@ build/
 *.m4a
 *.wav
 *.mp3
+*.mp4
 *.webm
+*.MP3
+*.MP4
 yt-dlp.exe
 .claude/
+
+# sample/test media for the web tool (kept local, never committed)
+tool/sample/
+# build artifacts (regenerate with: python tool/build.py)
+tool/dist/
+# uploaded audio handled by the backend
+server/media/
