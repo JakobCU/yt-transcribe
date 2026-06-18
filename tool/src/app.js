@@ -804,6 +804,7 @@ $('txStart').onclick=async()=>{
   const f=$('txFile').files[0];if(!f){toast('Bitte eine Audio-/Videodatei wählen');return;}
   const fd=new FormData();fd.append('audio',f);fd.append('model',$('txModel').value);
   fd.append('language',$('txLang').value.trim());fd.append('diarize',$('txDiar').checked?'true':'false');
+  fd.append('device',$('txDevice').value);
   if(pendingProjectId)fd.append('project_id',pendingProjectId);
   closeTxModal();showJobBanner('Lade „'+f.name+'" hoch…',0.02,false);
   let jobId;
@@ -833,12 +834,12 @@ async function loadJobResult(jobId,fname){
   try{
     const r=await fetch('/api/jobs/'+jobId+'/result');if(!r.ok)throw new Error('Ergebnis nicht abrufbar ('+r.status+')');
     const res=await r.json();
-    if(res.document_id){hideJobBanner();pendingProjectId=null;await loadProjects();openServerDocument(res.document_id);toast('Transkript erstellt'+(res.diarized?' (mit Sprechern)':''));return;}
+    if(res.document_id){hideJobBanner();pendingProjectId=null;await loadProjects();openServerDocument(res.document_id);toast('Transkript erstellt'+(res.device?' · '+res.device.toUpperCase():'')+(res.diarized?' · mit Sprechern':''));return;}
     if(!res||!res.text)throw new Error('Leeres Ergebnis');
     showJobBanner('Fertig — lade Transkript…',1,false);
     const name=(res.name||fname||'transkript').replace(/\.[^.]+$/,'')+'.txt';
     loadTranscript(res.text,name);hideJobBanner();
-    toast('Transkript geladen'+(res.diarized?' (mit Sprechern)':' (ohne Diarization)'));
+    toast('Transkript geladen'+(res.device?' · '+res.device.toUpperCase():'')+(res.diarized?' · mit Sprechern':' · ohne Diarization'));
   }catch(err){showJobBanner('Fehler beim Laden: '+err.message,0,true);}
 }
 initBackend();

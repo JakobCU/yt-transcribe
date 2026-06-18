@@ -84,6 +84,7 @@ async def transcribe(
     model: str = Form("large-v3"),
     language: str = Form(""),
     diarize: bool = Form(True),
+    device: str = Form(""),
     project_id: str = Form(None),
     user: db.User = Depends(auth.require_user),
     s=Depends(auth.get_db),
@@ -110,6 +111,7 @@ async def transcribe(
         "model": model,
         "language": language.strip() or None,
         "diarize": diarize,
+        "device": device.strip() or None,
         "project_id": project_id or None,
         "user_id": user.id,
     })
