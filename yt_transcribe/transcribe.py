@@ -14,6 +14,12 @@ if not hasattr(torchaudio, "list_audio_backends"):
 import whisper
 from tqdm import tqdm
 
+# Loaded models are cached so a long-running server reuses them across jobs
+# instead of reloading (the slow part) every time. The CLI loads once and exits,
+# so this is a no-op there.
+_WHISPER_CACHE: dict = {}
+_DIARIZE_CACHE: dict = {}
+
 
 def format_timestamp(seconds: float) -> str:
     """Convert seconds to HH:MM:SS,mmm format."""
@@ -67,11 +73,15 @@ def run_diarization(audio_path: str, hf_token: str, device: str):
     from pyannote.audio import Pipeline
 
     print("\n[2/3] Running speaker diarization...")
-    pipeline = Pipeline.from_pretrained(
-        "pyannote/speaker-diarization-3.1",
-        token=hf_token,
-    )
-    pipeline.to(torch.device(device))
+    cache_key = ("pyannote/speaker-diarization-3.1", device)
+    pipeline = _DIARIZE_CACHE.get(cache_key)
+    if pipeline is None:
+        pipeline = Pipeline.from_pretrained(
+            "pyannote/speaker-diarization-3.1",
+            token=hf_token,
+        )
+        pipeline.to(torch.device(device))
+        _DIARIZE_CACHE[cache_key] = pipeline
 
     # Load audio via soundfile to bypass broken torchcodec on Windows
     data, sample_rate = soundfile.read(audio_path)
@@ -92,7 +102,11 @@ def run_diarization(audio_path: str, hf_token: str, device: str):
 def run_transcription(audio_path: str, model_name: str, device: str, language: str | None):
     """Run Whisper transcription."""
     print(f"\n[1/3] Loading Whisper model '{model_name}'...")
-    model = whisper.load_model(model_name, device=device)
+    cache_key = (model_name, device)
+    model = _WHISPER_CACHE.get(cache_key)
+    if model is None:
+        model = whisper.load_model(model_name, device=device)
+        _WHISPER_CACHE[cache_key] = model
 
     print(f"  Transcribing (this may take a while for long audio)...")
     transcribe_opts = {"verbose": False, "fp16": device == "cuda"}
@@ -183,3 +197,77 @@ def transcribe(
     m, s = divmod(int(elapsed), 60)
     h, m = divmod(m, 60)
     print(f"\nDone! Total time: {h:02d}:{m:02d}:{s:02d}")
+
+
+# ---------------------------------------------------------------------------
+# Structured API (used by the web backend) — returns data instead of writing
+# files, with a coarse progress callback. The CLI path above is unchanged.
+# ---------------------------------------------------------------------------
+
+def build_segments(result, diarization):
+    """Return a list of {start, end, speaker, text} dicts from a whisper result."""
+    out = []
+    for seg in result["segments"]:
+        start, end = seg["start"], seg["end"]
+        text = seg["text"].strip()
+        if diarization is not None:
+            speaker = get_speaker_for_segment(start, end, diarization)
+        else:
+            speaker = "SPEAKER"
+        out.append({"start": start, "end": end, "speaker": speaker, "text": text})
+    return out
+
+
+def segments_to_text(segments) -> str:
+    """Render segments into the `[HH:MM:SS] SPEAKER: text` format the tool parses."""
+    return "\n".join(
+        f"[{format_timestamp_short(s['start'])}] {s['speaker']}: {s['text']}"
+        for s in segments
+    )
+
+
+def transcribe_segments(
+    audio_path: str,
+    model: str = "large-v3",
+    language: str | None = None,
+    no_diarize: bool = False,
+    hf_token: str | None = None,
+    device: str | None = None,
+    progress=None,
+):
+    """Run the pipeline and RETURN structured results (no file output).
+
+    progress(stage, frac) is called with stage in
+    {'convert','transcribe','diarize','merge','done'} and frac in [0,1].
+    """
+    def emit(stage, frac=0.0):
+        if progress:
+            progress(stage, float(frac))
+
+    device = device or ("cuda" if torch.cuda.is_available() else "cpu")
+
+    emit("convert", 0.0)
+    wav_path = convert_to_wav(audio_path)
+
+    emit("transcribe", 0.0)
+    result = run_transcription(wav_path, model, device, language)
+    emit("transcribe", 1.0)
+
+    diarization = None
+    if not no_diarize and hf_token:
+        emit("diarize", 0.0)
+        diarization = run_diarization(wav_path, hf_token, device)
+        emit("diarize", 1.0)
+
+    emit("merge", 0.0)
+    segments = build_segments(result, diarization)
+    text = segments_to_text(segments)
+    emit("done", 1.0)
+
+    return {
+        "segments": segments,
+        "text": text,
+        "language": result.get("language"),
+        "device": device,
+        "diarized": diarization is not None,
+    }
