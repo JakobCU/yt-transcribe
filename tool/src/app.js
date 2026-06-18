@@ -398,6 +398,7 @@ $('loadTxt').onclick=()=>pick('.txt,text/plain',f=>f.text().then(t=>loadTranscri
 $('loadAud').onclick=()=>pick('audio/*,video/*',loadMedia);
 function pick(accept,cb){const i=document.createElement('input');i.type='file';i.accept=accept;i.onchange=()=>{if(i.files[0])cb(i.files[0]);};i.click();}
 function loadMedia(f){media.src=URL.createObjectURL(f);media.classList.toggle('audioOnly',!f.type.startsWith('video'));$('noMedia').style.display='none';media.playbackRate=clamp(media.playbackRate,0.5,2);$('rateVal').textContent=media.playbackRate.toFixed(1)+'×';toast('Geladen: '+f.name);}
+function loadMediaUrl(url){media.src=url;media.classList.add('audioOnly');$('noMedia').style.display='none';media.playbackRate=clamp(media.playbackRate,0.5,2);$('rateVal').textContent=media.playbackRate.toFixed(1)+'×';}
 
 /* drag & drop */
 const drop=$('drop');let dragN=0;
@@ -1035,6 +1036,8 @@ async function openServerDocument(docId){
   installDoc(normalizeDoc(doc,doc.name,doc.header||''));
   serverDoc={id:docId,projectId:doc.projectId,rev:doc.rev||0,conflict:false};
   captureServerBaseline();
+  if(doc.hasAudio)loadMediaUrl('/api/documents/'+docId+'/audio');
+  else{media.removeAttribute('src');media.classList.add('audioOnly');$('noMedia').style.display='';}
   $('libpanel').classList.remove('show');$('restoreBanner').classList.remove('show');
   toast('Geöffnet: '+transcriptName);
 }

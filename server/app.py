@@ -42,15 +42,25 @@ app.include_router(documents.router)
 
 
 def _transcribe_runner(payload: dict, progress) -> dict:
-    """Run the pipeline, then persist the result as a project document (if a
-    project was given) so it survives the client closing."""
+    """Run the pipeline, then (for a project) persist the result as a document and
+    store a compact Opus copy of the audio, so the document — and its audio — survive
+    the client closing. The transient WAV Whisper used is deleted afterwards."""
     res = pipeline.run(payload, progress)
     pid = payload.get("project_id")
+    src = payload.get("path")
     if pid:
         with db.SessionLocal() as s:
             d = documents.create_document_from_text(
                 s, pid, payload.get("name"), res["text"], created_by=payload.get("user_id", ""))
+            if src:
+                progress("store", 1.0)
+                fn = documents.store_audio(src, d.id)
+                if fn:
+                    d.audio = fn
+                    s.commit()
             res["document_id"] = d.id
+        if src and os.environ.get("KEEP_UPLOADS") != "1":
+            pipeline._cleanup(src)  # remove the original upload + transient WAV
     return res
 
 

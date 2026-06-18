@@ -60,9 +60,10 @@ def run(payload: dict, progress: Callable[[str, float], None]) -> dict:
             progress=progress,
         )
     finally:
-        # Don't keep raw interview audio (or the derived WAV) on the shared box
-        # after processing — disk hygiene + data retention for sensitive material.
-        if os.environ.get("KEEP_UPLOADS") != "1":
+        # Ad-hoc (no project): delete the upload + derived WAV now. For project jobs
+        # the runner keeps the source so it can transcode a compact copy to store,
+        # then cleans up itself (see _transcribe_runner). KEEP_UPLOADS=1 keeps all.
+        if not payload.get("project_id") and os.environ.get("KEEP_UPLOADS") != "1":
             _cleanup(audio_path)
 
     return {

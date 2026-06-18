@@ -93,6 +93,7 @@ class Document(Base):
     project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
     name: Mapped[str] = mapped_column(String)
     doc: Mapped[dict] = mapped_column(JSON, default=dict)   # shared: schemaVersion, speakers, segments, header, media
+    audio: Mapped[str] = mapped_column(String, default="")  # stored compact audio filename (in media/audio/), '' = none
     rev: Mapped[int] = mapped_column(Integer, default=0)    # optimistic lock token for the shared text
     created_by: Mapped[str] = mapped_column(String, default="")
     updated_by: Mapped[str] = mapped_column(String, default="")
@@ -114,3 +115,14 @@ class UserLayer(Base):
 
 def init_db() -> None:
     Base.metadata.create_all(engine)
+    _migrate()
+
+
+def _migrate() -> None:
+    """Lightweight additive migrations for existing SQLite DBs (add new columns)."""
+    if not DB_URL.startswith("sqlite"):
+        return
+    with engine.begin() as conn:
+        cols = {r[1] for r in conn.exec_driver_sql("PRAGMA table_info(documents)")}
+        if "audio" not in cols:
+            conn.exec_driver_sql("ALTER TABLE documents ADD COLUMN audio VARCHAR DEFAULT ''")

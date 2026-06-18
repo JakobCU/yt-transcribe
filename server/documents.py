@@ -3,6 +3,9 @@ each user's own coding layer. GET reassembles the exact v2 doc the offline tool
 already understands (shared doc + project codebook + the caller's layer)."""
 from __future__ import annotations
 
+import subprocess
+from pathlib import Path
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session as DBSession
@@ -13,6 +16,26 @@ from server.projects import member_or_403
 from server.transcripts import parse_transcript
 
 router = APIRouter()
+
+AUDIO_DIR = Path(__file__).resolve().parent / "media" / "audio"
+AUDIO_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def store_audio(src_path: str, doc_id: str) -> str:
+    """Transcode the source to a compact mono Opus copy for storage/serving.
+    Returns the stored filename, or '' on failure (audio is optional). The WAV
+    Whisper needs is transient (created during transcription) and not kept here."""
+    for ext, codec, br in ((".ogg", "libopus", "24k"), (".m4a", "aac", "48k")):
+        out = AUDIO_DIR / f"{doc_id}{ext}"
+        try:
+            subprocess.run(
+                ["ffmpeg", "-i", src_path, "-vn", "-ac", "1", "-c:a", codec, "-b:a", br, "-y", str(out)],
+                capture_output=True, check=True,
+            )
+            return out.name
+        except Exception:
+            out.unlink(missing_ok=True)
+    return ""
 
 
 def create_document_from_text(s: DBSession, project_id: str, name: str, text: str,
@@ -63,8 +86,25 @@ def get_document(did: str, s: DBSession = Depends(get_db), user: db.User = Depen
         "codeApplications": layer.code_applications if layer else [],
         "highlights": layer.highlights if layer else [],
         "comments": layer.comments if layer else [],
+        "hasAudio": bool(doc.audio),
     })
     return shared
+
+
+@router.get("/api/documents/{did}/audio")
+def get_audio(did: str, s: DBSession = Depends(get_db), user: db.User = Depends(require_user)):
+    doc = s.get(db.Document, did)
+    if doc is None:
+        raise HTTPException(404, "Dokument nicht gefunden")
+    member_or_403(s, user, doc.project_id)
+    if not doc.audio:
+        raise HTTPException(404, "Kein Audio gespeichert")
+    path = AUDIO_DIR / doc.audio  # doc.audio is server-generated ("{id}.ogg"); no user input
+    if not path.is_file():
+        raise HTTPException(404, "Audiodatei fehlt")
+    from fastapi.responses import FileResponse
+    mime = "audio/ogg" if path.suffix == ".ogg" else "audio/mp4"
+    return FileResponse(str(path), media_type=mime)
 
 
 @router.put("/api/documents/{did}/text")
