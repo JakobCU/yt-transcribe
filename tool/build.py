@@ -14,6 +14,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import base64
 import re
 from pathlib import Path
 
@@ -46,6 +47,15 @@ def build(embed: str | None, out: str) -> Path:
 
     html = LINK_RE.sub(inline_link, html)
     html = SCRIPT_RE.sub(inline_script, html)
+
+    def inline_font(m: re.Match) -> str:
+        p = SRC / m.group(1)
+        if not p.exists():
+            return m.group(0)
+        b64 = base64.b64encode(p.read_bytes()).decode()
+        return f"url(data:font/woff2;base64,{b64})"
+
+    html = re.sub(r"url\((vendor/fonts/[^)]+\.woff2)\)", inline_font, html)
 
     if embed:
         text = Path(embed).read_text(encoding="utf-8").strip()

@@ -9,6 +9,8 @@
 <body>
 <div class="topbar">
   <div class="grp">
+    <span class="brand">transkript<span class="dot">::</span>studio</span>
+    <button class="btn" id="libBtn" style="display:none" title="Bibliothek — Projekte & Dokumente">📚 Bibliothek</button>
     <button class="btn" id="loadTxt">📄 Transkript laden</button>
     <button class="btn" id="loadAud">🔊 Audio/Video laden</button>
     <button class="btn primary" id="transcribeBtn" style="display:none" title="Aufnahme automatisch transkribieren">🎙 Transkribieren</button>
@@ -42,6 +44,8 @@
     <button class="btn" id="moreExport">⋯</button>
     <button class="btn" id="codesBtn" title="Codes / thematisches Kodieren">🏷 <span id="codeCount">0</span></button>
     <button class="btn" id="commentsBtn" title="Kommentare anzeigen">💬 <span id="cCount">0</span></button>
+    <button class="btn icon" id="themeBtn" title="Hell / Dunkel umschalten">◐</button>
+    <span class="userchip" id="userChip" title="Bibliothek öffnen"><b id="userName"></b></span>
     <button class="btn" id="helpBtn" title="Hilfe (?)">?</button>
   </div>
 </div>
@@ -67,6 +71,26 @@
 
 <div id="drop">Datei hier ablegen (Transkript .txt oder Audio/Video)</div>
 <div id="toast"></div>
+
+<!-- login / register gate (only when served by the backend) -->
+<div id="authGate"><div class="acard">
+  <div class="alogo">transkript<span class="dot">::</span>studio</div>
+  <div class="asub" id="authSub">Anmelden, um mit deinem Team zu arbeiten.</div>
+  <div id="authNameRow" style="display:none"><label>Name</label><input type="text" id="authName" placeholder="Vor- und Nachname"></div>
+  <label>E-Mail</label><input type="email" id="authEmail" placeholder="name@ait.ac.at" autocomplete="username">
+  <label>Passwort</label><input type="password" id="authPass" placeholder="mindestens 8 Zeichen" autocomplete="current-password">
+  <div class="ahint" id="authHint"></div>
+  <div class="aerr" id="authErr"></div>
+  <button class="btn primary abtn" id="authSubmit">Anmelden</button>
+  <div class="atoggle" id="authToggle">Noch kein Konto? <a id="authSwitch">Registrieren</a></div>
+</div></div>
+
+<!-- library: projects + documents (server mode) -->
+<aside id="libpanel">
+  <header><span>📚 Bibliothek</span><button class="btn" id="libClose">✕</button></header>
+  <div class="lwrap" id="libBody"></div>
+  <div class="luser"><span class="lu-mail" id="luMail"></span><button class="btn" id="logoutBtn">Abmelden</button></div>
+</aside>
 
 <!-- transcribe options modal (backend mode) -->
 <div id="txModal"><div class="card">

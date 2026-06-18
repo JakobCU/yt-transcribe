@@ -19,6 +19,7 @@ let codeApplications=[];   // [{id,codeId,anchor,selectedText,source,confidence,
 let headerText='', transcriptId='', transcriptName='';
 let docMeta={};            // {docId,rev,createdAt,updatedAt,media}
 let codingCfg={mode:'inductive',codebookName:'',codebookVersion:1};  // induktiv | deduktiv | hybrid
+let serverDoc=null, currentUser=null, pendingProjectId=null;  // team-server mode (null = offline/localStorage)
 
 let activeIndex=-1, lastFollow=-1, saveTimer=null;
 let followOn=true, autoRewind=true, loopOn=false, editSeek=true;
@@ -234,7 +235,7 @@ function render(){
     el.dataset.i=i; el.dataset.id=s.id; el.style.setProperty('--spk',col);
     el.innerHTML=
       `<button class="ts" data-sec="${s.seconds}" title="Audio hierher springen">⏱ ${s.time}</button>`+
-      `<select class="spk" style="background:${col}">${speakerOptions(s.speakerId)}</select>`+
+      `<select class="spk">${speakerOptions(s.speakerId)}</select>`+
       `<div class="text" contenteditable="true" spellcheck="false">${renderText(s)}</div>`+
       `<div class="rowtools">`+
         `<button class="v" data-act="verify" title="geprüft (Strg+Enter)">✓</button>`+
@@ -411,7 +412,7 @@ let _lastRaw='';
 function loadTranscript(raw,name){
   const {segs,header}=parse(raw);
   if(!segs.length){toast('Keine [HH:MM:SS] SPEAKER: Zeilen gefunden');return;}
-  _lastRaw=raw;transcriptName=name||'transkript';
+  _lastRaw=raw;transcriptName=name||'transkript';serverDoc=null;  // local load = offline (localStorage)
   transcriptId='tc:'+transcriptName+':'+raw.length;
   let doc=null,restored=false;
   const saved=localStorage.getItem(transcriptId);
@@ -424,6 +425,7 @@ function loadTranscript(raw,name){
   toast('Transkript geladen: '+transcriptName);
 }
 function save(){clearTimeout(saveTimer);saveTimer=setTimeout(()=>{
+  if(serverDoc){serverSaveFlush();return;}  // team mode → server
   try{docMeta.rev=(docMeta.rev||0)+1;localStorage.setItem(transcriptId,JSON.stringify(currentDoc()));}catch(_){}
 },400);}
 $('resetState').onclick=()=>{if(!confirm('Bearbeitungsstand verwerfen und Original neu laden?'))return;
@@ -779,10 +781,13 @@ $('jobCancel').onclick=()=>{if(activeJobFinish)activeJobFinish();hideJobBanner()
 async function initBackend(){
   try{
     const r=await fetch('/api/health',{cache:'no-store'});if(!r.ok)return;
-    const h=await r.json();backend.available=!!h.ok;backend.diarization=!!h.diarizationAvailable;backend.fake=!!h.fake;backend.llm=h.llm||{};
-    if(backend.available)$('transcribeBtn').style.display='';
-    refreshLLMUI();
-  }catch(_){/* offline mode: no backend, button stays hidden */}
+    const h=await r.json();
+    backend.available=!!h.ok;backend.diarization=!!h.diarizationAvailable;backend.fake=!!h.fake;backend.llm=h.llm||{};backend.auth=h.auth||{};
+    if(!backend.available)return;
+    let me=null;
+    try{const mr=await fetch('/api/auth/me',{cache:'no-store'});if(mr.ok)me=await mr.json();}catch(_){}
+    if(me)enterServerMode(me); else showAuthGate();
+  }catch(_){/* offline mode: no backend */}
 }
 $('transcribeBtn').onclick=()=>{
   const diar=$('txDiar'),note=$('txDiarNote');
@@ -798,6 +803,7 @@ $('txStart').onclick=async()=>{
   const f=$('txFile').files[0];if(!f){toast('Bitte eine Audio-/Videodatei wählen');return;}
   const fd=new FormData();fd.append('audio',f);fd.append('model',$('txModel').value);
   fd.append('language',$('txLang').value.trim());fd.append('diarize',$('txDiar').checked?'true':'false');
+  if(pendingProjectId)fd.append('project_id',pendingProjectId);
   closeTxModal();showJobBanner('Lade „'+f.name+'" hoch…',0.02,false);
   let jobId;
   try{const r=await fetch('/api/transcribe',{method:'POST',body:fd});if(!r.ok)throw new Error('Upload fehlgeschlagen ('+r.status+')');jobId=(await r.json()).job_id;}
@@ -826,6 +832,7 @@ async function loadJobResult(jobId,fname){
   try{
     const r=await fetch('/api/jobs/'+jobId+'/result');if(!r.ok)throw new Error('Ergebnis nicht abrufbar ('+r.status+')');
     const res=await r.json();
+    if(res.document_id){hideJobBanner();pendingProjectId=null;await loadProjects();openServerDocument(res.document_id);toast('Transkript erstellt'+(res.diarized?' (mit Sprechern)':''));return;}
     if(!res||!res.text)throw new Error('Leeres Ergebnis');
     showJobBanner('Fertig — lade Transkript…',1,false);
     const name=(res.name||fname||'transkript').replace(/\.[^.]+$/,'')+'.txt';
@@ -892,7 +899,7 @@ async function applyCodingResult(jobId){
       if(!n.name)return;const exists=codeSystem.find(c=>c.name.toLowerCase()===n.name.toLowerCase());
       if(!exists){const c=createCode({name:n.name});c.provisional=true;c.definition=n.rationale||'';}
     });
-    hideJobBanner();render();renderCodes();
+    hideJobBanner();render();renderCodes();save();
     const st=res.stats||{};
     toast(`KI-Kodierung: ${added} Vorschläge`+(st.invalid_quotes?` · ${st.invalid_quotes} ohne gültiges Zitat verworfen`:''));
     $('cpanel').classList.remove('show');$('codepanel').classList.add('show');renderReview();
@@ -925,6 +932,134 @@ function renderReview(){
 }
 $('llmCodeBtn').onclick=startLLMCoding;
 $('reviewBtn').onclick=renderReview;
+
+/* ---------- theme (light default + dark, universal) ---------- */
+function applyTheme(t){document.documentElement.setAttribute('data-theme',t);try{localStorage.setItem('tc:theme',t);}catch(_){}}
+function initTheme(){let t=null;try{t=localStorage.getItem('tc:theme');}catch(_){}
+  document.documentElement.setAttribute('data-theme',t||'light');}  // light by default; dark via toggle
+$('themeBtn').onclick=()=>applyTheme(document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark');
+initTheme();
+
+/* ---------- team server: auth + library + server persistence ---------- */
+let authMode='login', projectsCache=[], activeProjectId=null;
+let lastTextJson='', lastLayerJson='', lastCbJson='';
+
+function enterServerMode(me){
+  currentUser=me;
+  $('authGate').classList.remove('show');
+  $('libBtn').style.display=''; $('transcribeBtn').style.display='none';
+  $('userChip').style.display='inline-flex'; $('userName').textContent=me.name||me.email;
+  $('luMail').textContent=me.email;
+  refreshLLMUI();
+  openLibrary();
+}
+
+/* auth gate */
+function showAuthGate(){$('authGate').classList.add('show');setAuthMode('login');
+  $('authHint').textContent=(backend.auth&&backend.auth.allowedDomains&&backend.auth.allowedDomains.length)?('Registrierung nur für: '+backend.auth.allowedDomains.join(', ')):'';}
+function setAuthMode(m){authMode=m;const reg=m==='register';
+  $('authNameRow').style.display=reg?'':'none';
+  $('authSub').textContent=reg?'Konto anlegen (AIT-Adresse).':'Anmelden, um mit deinem Team zu arbeiten.';
+  $('authSubmit').textContent=reg?'Registrieren':'Anmelden';
+  $('authHint').style.display=reg?'':'none';$('authErr').textContent='';
+  $('authToggle').innerHTML=reg?'Schon ein Konto? <a id="authSwitch">Anmelden</a>':'Noch kein Konto? <a id="authSwitch">Registrieren</a>';
+  $('authSwitch').onclick=()=>setAuthMode(reg?'login':'register');}
+async function submitAuth(){
+  const email=$('authEmail').value.trim(),pass=$('authPass').value,name=$('authName').value.trim();
+  $('authErr').textContent='';
+  const ep=authMode==='register'?'/api/auth/register':'/api/auth/login';
+  const body=authMode==='register'?{email,name,password:pass}:{email,password:pass};
+  try{const r=await fetch(ep,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const d=await r.json();if(!r.ok)throw new Error(d.detail||'Fehler');enterServerMode(d);}
+  catch(err){$('authErr').textContent=typeof err.message==='string'?err.message:'Anmeldung fehlgeschlagen';}
+}
+$('authSubmit').onclick=submitAuth;
+$('authPass').addEventListener('keydown',e=>{if(e.key==='Enter')submitAuth();});
+$('logoutBtn').onclick=async()=>{try{await fetch('/api/auth/logout',{method:'POST'});}catch(_){}location.reload();};
+
+/* library */
+function openLibrary(){$('cpanel').classList.remove('show');$('codepanel').classList.remove('show');$('libpanel').classList.add('show');loadProjects();}
+$('libBtn').onclick=openLibrary;$('userChip').onclick=openLibrary;
+$('libClose').onclick=()=>$('libpanel').classList.remove('show');
+async function loadProjects(){try{projectsCache=await (await fetch('/api/projects',{cache:'no-store'})).json();}catch(_){projectsCache=[];}renderLibrary();}
+function renderLibrary(){
+  const body=$('libBody');let html='';
+  html+='<div class="lactions"><button class="btn primary" id="newProjBtn">＋ Neues Projekt</button></div>';
+  html+='<div class="lsec">Projekte</div>';
+  html+=projectsCache.length?projectsCache.map(p=>`<div class="lrow${p.id===activeProjectId?' active':''}" data-proj="${p.id}"><span class="ltitle">${esc(p.name)}</span><span class="lmeta">${p.documents}📄</span><span class="lrole">${esc(p.role)}</span></div>`).join('')
+    :'<div class="lempty">Noch keine Projekte — leg eines an.</div>';
+  if(activeProjectId){
+    const proj=projectsCache.find(p=>p.id===activeProjectId);
+    html+=`<div class="lsec">Dokumente · ${esc(proj?proj.name:'')}</div>`;
+    html+='<div class="lactions"><button class="btn" id="txInProj">🎙 Audio transkribieren</button><button class="btn" id="importTxt">📄 .txt importieren</button>';
+    if(proj&&proj.role==='admin')html+='<button class="btn" id="addMember">＋ Mitglied</button>';
+    html+='</div><div id="docList"><div class="lempty">…</div></div>';
+  }
+  body.innerHTML=html;
+  $('newProjBtn').onclick=createProjectFlow;
+  body.querySelectorAll('[data-proj]').forEach(el=>el.onclick=()=>{activeProjectId=el.dataset.proj;renderLibrary();});
+  if(activeProjectId){$('txInProj').onclick=()=>{pendingProjectId=activeProjectId;openTxModal();};
+    $('importTxt').onclick=importTxtFlow;const am=$('addMember');if(am)am.onclick=addMemberFlow;loadDocs();}
+}
+async function loadDocs(){const pid=activeProjectId;let docs=[];
+  try{docs=await (await fetch('/api/projects/'+pid+'/documents',{cache:'no-store'})).json();}catch(_){}
+  const el=$('docList');if(!el)return;
+  el.innerHTML=docs.length?docs.map(d=>`<div class="lrow${serverDoc&&serverDoc.id===d.id?' active':''}" data-doc="${d.id}"><span class="ltitle">${esc(d.name)}</span><span class="lmeta">${d.segments} Zeilen</span></div>`).join('')
+    :'<div class="lempty">Noch keine Dokumente. Transkribiere oder importiere eines.</div>';
+  el.querySelectorAll('[data-doc]').forEach(x=>x.onclick=()=>openServerDocument(x.dataset.doc));
+}
+function createProjectFlow(){const name=prompt('Name des neuen Projekts:','');if(!name||!name.trim())return;
+  fetch('/api/projects',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name.trim()})})
+    .then(r=>r.json()).then(p=>{activeProjectId=p.id;loadProjects();});}
+function addMemberFlow(){const email=prompt('E-Mail des Mitglieds (muss bereits registriert sein):','');if(!email||!email.trim())return;
+  const role=confirm('Als Admin hinzufügen?  (Abbrechen = Coder)')?'admin':'coder';
+  fetch('/api/projects/'+activeProjectId+'/members',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:email.trim(),role})})
+    .then(r=>r.json().then(d=>toast(r.ok?'Mitglied hinzugefügt':(d.detail||'Fehler'))));}
+function importTxtFlow(){pick('.txt,text/plain',f=>f.text().then(t=>{
+  fetch('/api/projects/'+activeProjectId+'/documents',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:f.name.replace(/\.txt$/i,''),text:t})})
+    .then(r=>r.json()).then(d=>{if(d.id){loadProjects();openServerDocument(d.id);}else toast(d.detail||'Import fehlgeschlagen');});}));}
+
+/* open + persist a server document */
+async function openServerDocument(docId){
+  let doc;
+  try{const r=await fetch('/api/documents/'+docId,{cache:'no-store'});if(!r.ok)throw new Error('Laden fehlgeschlagen ('+r.status+')');doc=await r.json();}
+  catch(err){toast('Fehler: '+err.message);return;}
+  transcriptName=doc.name||'Dokument';
+  installDoc(normalizeDoc(doc,doc.name,doc.header||''));
+  serverDoc={id:docId,projectId:doc.projectId,rev:doc.rev||0,conflict:false};
+  captureServerBaseline();
+  $('libpanel').classList.remove('show');$('restoreBanner').classList.remove('show');
+  toast('Geöffnet: '+transcriptName);
+}
+function captureServerBaseline(){
+  lastTextJson=JSON.stringify({speakers:speakerList,segments,header:headerText});
+  lastLayerJson=JSON.stringify({codeApplications,highlights,comments});
+  lastCbJson=JSON.stringify({codeSystem,coding:codingCfg});
+}
+async function serverSaveFlush(){
+  if(!serverDoc)return;
+  const tj=JSON.stringify({speakers:speakerList,segments,header:headerText});
+  if(tj!==lastTextJson&&!serverDoc.conflict){
+    try{const r=await fetch('/api/documents/'+serverDoc.id+'/text',{method:'PUT',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({speakers:speakerList,segments,header:headerText,rev:serverDoc.rev})});
+      if(r.status===409){serverDoc.conflict=true;showConflict();}
+      else if(r.ok){lastTextJson=tj;serverDoc.rev=(await r.json()).rev;}}catch(_){}
+  }
+  const lj=JSON.stringify({codeApplications,highlights,comments});
+  if(lj!==lastLayerJson){
+    try{const r=await fetch('/api/documents/'+serverDoc.id+'/layer',{method:'PUT',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({codeApplications,highlights,comments})});if(r.ok)lastLayerJson=lj;}catch(_){}
+  }
+  const cj=JSON.stringify({codeSystem,coding:codingCfg});
+  if(cj!==lastCbJson&&serverDoc.projectId){
+    try{const r=await fetch('/api/projects/'+serverDoc.projectId+'/codebook',{method:'PUT',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({codeSystem,coding:codingCfg})});if(r.ok)lastCbJson=cj;}catch(_){}
+  }
+}
+function showConflict(){const b=$('restoreBanner');
+  $('restoreMsg').textContent='⚠ Transkript wurde von jemand anderem geändert. Deine Text-Änderungen werden nicht gespeichert.';
+  $('resetState').textContent='Neu laden';b.classList.add('show');
+  $('resetState').onclick=()=>{const id=serverDoc.id;serverDoc=null;b.classList.remove('show');openServerDocument(id);};}
 
 /* ---------- boot ---------- */
 (function(){const emb=$('embedded-transcript').textContent.trim();
