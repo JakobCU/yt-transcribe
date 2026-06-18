@@ -867,13 +867,22 @@ initBackend();
    rationale, not just the code label). Nothing is auto-accepted. */
 function refreshLLMUI(){
   const row=$('cpllm');if(!row)return;
-  const provs=(backend.available&&backend.llm)?Object.entries(backend.llm).filter(([,v])=>v&&v.available):[];
-  if(!provs.length){row.style.display='none';return;}
+  if(!backend.available){row.style.display='none';return;}  // offline: no LLM backend
   row.style.display='';
-  const sel=$('llmProvider');
-  if(sel.dataset.n!==String(provs.length)){
-    sel.innerHTML=provs.map(([k,v])=>`<option value="${k}">${esc(v.label||k)}</option>`).join('');
-    sel.dataset.n=String(provs.length);
+  const provs=backend.llm?Object.entries(backend.llm).filter(([,v])=>v&&v.available):[];
+  const sel=$('llmProvider'),btn=$('llmCodeBtn'),hint=$('llmHint');
+  if(provs.length){
+    sel.style.display='';btn.disabled=false;hint.style.display='none';
+    btn.title='Transkript automatisch mit dem Codebook kodieren';
+    if(sel.dataset.n!==String(provs.length)){
+      sel.innerHTML=provs.map(([k,v])=>`<option value="${k}">${esc(v.label||k)}</option>`).join('');
+      sel.dataset.n=String(provs.length);
+    }
+  }else{
+    sel.style.display='none';sel.dataset.n='';btn.disabled=true;
+    btn.title='Kein LLM konfiguriert';
+    hint.style.display='';
+    hint.textContent='Kein LLM aktiv — ANTHROPIC_API_KEY in .env setzen (Claude) oder „ollama serve" starten, dann Server neu starten.';
   }
 }
 function updateSuggestCount(){

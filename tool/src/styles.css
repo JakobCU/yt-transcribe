@@ -63,6 +63,7 @@ button{font:inherit;cursor:pointer;color:inherit}
 .btn.primary:hover{background:var(--accent-press);border-color:var(--accent-press)}
 .btn.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent-press)}
 .btn.icon{padding:6px 9px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
 .pill{font-size:12px;color:var(--muted);white-space:nowrap;font-family:var(--mono)}
 .pill b{color:var(--ink);font-weight:500}
 input[type=search],input[type=text],input[type=password],input[type=email]{font:inherit;font-size:13px;padding:6px 10px;
