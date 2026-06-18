@@ -22,6 +22,7 @@ from typing import Optional
 
 DEFAULT_CLAUDE_MODEL = "claude-opus-4-8"
 DEFAULT_OLLAMA_MODEL = "llama3.1:8b"
+DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
 
 
 def ollama_host() -> str:
@@ -35,6 +36,11 @@ def available_providers() -> dict:
         "available": bool(os.environ.get("ANTHROPIC_API_KEY")),
         "default_model": DEFAULT_CLAUDE_MODEL,
         "label": "Claude (Cloud)",
+    }
+    providers["openai"] = {
+        "available": bool(os.environ.get("OPENAI_API_KEY")),
+        "default_model": os.environ.get("OPENAI_MODEL", DEFAULT_OPENAI_MODEL),
+        "label": "OpenAI (Cloud)",
     }
     providers["ollama"] = {
         "available": _ollama_reachable(),
@@ -123,6 +129,8 @@ def complete(provider: str, model: str, system: str, user: str, temperature: flo
         return _fake_complete(user)
     if provider == "claude":
         return _claude_complete(model or DEFAULT_CLAUDE_MODEL, system, user, temperature)
+    if provider == "openai":
+        return _openai_complete(model or DEFAULT_OPENAI_MODEL, system, user, temperature)
     if provider == "ollama":
         return _ollama_complete(model or DEFAULT_OLLAMA_MODEL, system, user, temperature)
     raise ValueError(f"unknown provider {provider!r}")
@@ -139,6 +147,25 @@ def _claude_complete(model: str, system: str, user: str, temperature: float) -> 
         messages=[{"role": "user", "content": user}],
     )
     return "".join(b.text for b in msg.content if getattr(b, "type", None) == "text")
+
+
+def _openai_complete(model: str, system: str, user: str, temperature: float) -> str:
+    import requests
+    base = os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1").rstrip("/")
+    r = requests.post(
+        base + "/chat/completions",
+        headers={"Authorization": f"Bearer {os.environ.get('OPENAI_API_KEY', '')}",
+                 "Content-Type": "application/json"},
+        json={
+            "model": model,
+            "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
+            "temperature": temperature,
+            "response_format": {"type": "json_object"},
+        },
+        timeout=120,
+    )
+    r.raise_for_status()
+    return r.json()["choices"][0]["message"]["content"]
 
 
 def _ollama_complete(model: str, system: str, user: str, temperature: float) -> str:
