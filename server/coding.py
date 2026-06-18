@@ -19,13 +19,14 @@ def run(payload: dict, progress: Callable[[str, float], None]) -> dict:
     codes = [c for c in (payload.get("codes") or []) if c.get("isCodable") is not False]
     segments = payload.get("segments") or []
     valid_ids = {c["id"] for c in codes}
+    mode = payload.get("mode") or "deductive"
     ctx = int(payload.get("context", 1))
     provider = payload.get("provider") or "fake"
     model = payload.get("model") or ""
     concurrency = int(payload.get("concurrency") or (1 if provider == "ollama" else 4))
 
-    if not codes:
-        raise ValueError("codebook is empty — define codes before coding")
+    if mode == "deductive" and not codes:
+        raise ValueError("codebook is empty — define codes or switch to inductive coding")
     if not segments:
         raise ValueError("no segments to code")
 
@@ -39,7 +40,7 @@ def run(payload: dict, progress: Callable[[str, float], None]) -> dict:
         focal = segments[i]
         before = segments[max(0, i - ctx):i]
         after = segments[i + 1:i + 1 + ctx]
-        system, user = llm.build_messages(codes, focal, before, after)
+        system, user = llm.build_messages(codes, focal, before, after, mode)
         raw = llm.complete(provider, model, system, user)
         return {"i": i, "focal": focal, "parsed": llm.parse_response(raw)}
 
@@ -57,23 +58,29 @@ def run(payload: dict, progress: Callable[[str, float], None]) -> dict:
             focal, parsed = out["focal"], out["parsed"]
             text = focal.get("text", "") or ""
             for c in (parsed.get("codes") or []):
-                cid, quote = c.get("code_id"), (c.get("quote") or "")
-                if cid not in valid_ids:
-                    stats["unknown_codes"] += 1
-                    continue
+                cid = c.get("code_id")
+                name = (c.get("name") or "").strip()
+                quote = c.get("quote") or ""
                 pos = text.find(quote) if quote else -1
                 if pos < 0:
                     stats["invalid_quotes"] += 1
                     continue
-                suggestions.append({
+                sug = {
                     "segment_id": focal.get("id"),
-                    "code_id": cid,
                     "quote": quote,
                     "char_start": pos,
                     "char_end": pos + len(quote),
                     "rationale": (c.get("rationale") or "").strip(),
                     "confidence": c.get("confidence"),
-                })
+                }
+                if cid and cid in valid_ids:
+                    sug["code_id"] = cid
+                elif name and mode in ("inductive", "hybrid"):
+                    sug["code_name"] = name   # emergent code, created on the client
+                else:
+                    stats["unknown_codes"] += 1
+                    continue
+                suggestions.append(sug)
                 stats["suggested"] += 1
             snc = parsed.get("suggested_new_code")
             if snc and snc.get("name"):

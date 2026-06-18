@@ -130,9 +130,11 @@ async def transcribe(
 
 @app.post("/api/code")
 def code(body: dict, user: db.User = Depends(auth.require_user)):
-    """Start an LLM coding job. body: {codes[], segments[], provider, model, context, name}."""
-    if not body.get("codes"):
-        raise HTTPException(400, "codes (codebook) required")
+    """Start an LLM coding job. body: {codes[], segments[], provider, model, context, mode, name}.
+    mode: deductive (codebook required) | inductive (codes emerge) | hybrid."""
+    mode = body.get("mode") or "deductive"
+    if mode == "deductive" and not body.get("codes"):
+        raise HTTPException(400, "Codebook erforderlich für deduktives Kodieren (oder Modus auf induktiv stellen)")
     if not body.get("segments"):
         raise HTTPException(400, "segments required")
     provider = body.get("provider") or "fake"
@@ -140,11 +142,12 @@ def code(body: dict, user: db.User = Depends(auth.require_user)):
     if provider not in avail or not avail[provider]["available"]:
         raise HTTPException(400, f"provider '{provider}' not available")
     job_id = jobs.create_job("code", {
-        "codes": body["codes"],
+        "codes": body.get("codes") or [],
         "segments": body["segments"],
         "provider": provider,
         "model": body.get("model") or avail[provider]["default_model"],
         "context": int(body.get("context", 1)),
+        "mode": mode,
         "name": body.get("name") or "coding",
     })
     return {"job_id": job_id}

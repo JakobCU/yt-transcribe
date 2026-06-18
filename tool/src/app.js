@@ -890,13 +890,15 @@ function updateSuggestCount(){
   const el=$('suggestCount');if(el)el.textContent=n;
 }
 async function startLLMCoding(){
-  const codable=codeSystem.filter(c=>c.isCodable!==false);
-  if(!codable.length){toast('Erst Codes anlegen oder ein Codebook laden');return;}
   const turns=segments.filter(s=>s.type==='turn');
   if(!turns.length){toast('Kein Transkript geladen');return;}
+  const codable=codeSystem.filter(c=>c.isCodable!==false);
+  const mode=codingCfg.mode||'inductive';
+  if(mode==='deductive'&&!codable.length){toast('Deduktiv braucht Codes — anlegen, Codebook laden, oder Modus auf induktiv stellen');return;}
   const provider=$('llmProvider').value;
-  if(!confirm(`Transkript (${turns.length} Segmente) mit „${provider}" und ${codable.length} Codes kodieren?\nDie Vorschläge werden danach von dir geprüft, nichts wird automatisch übernommen.`))return;
-  const body={provider,context:1,name:'KI-Kodierung',
+  const how=mode==='inductive'?'induktiv (Codes entstehen am Material)':mode==='hybrid'?`hybrid (${codable.length} Codes + neue)`:`deduktiv (${codable.length} Codes)`;
+  if(!confirm(`Transkript (${turns.length} Segmente) ${how} mit „${provider}" kodieren?\nDie Vorschläge prüfst du danach — nichts wird automatisch übernommen.`))return;
+  const body={provider,mode,context:1,name:'KI-Kodierung',
     codes:codable.map(c=>({id:c.id,name:c.name,definition:c.definition,inclusion:c.inclusion,exclusion:c.exclusion,examples:c.examples,isCodable:true})),
     segments:turns.map(s=>({id:s.id,speaker:speakerLabel(s),text:s.text}))};
   showJobBanner('Starte KI-Kodierung…',0.02,false);
@@ -913,11 +915,18 @@ async function applyCodingResult(jobId){
     const r=await fetch('/api/jobs/'+jobId+'/result');if(!r.ok)throw new Error('Ergebnis nicht abrufbar');
     const res=await r.json();let added=0;
     (res.suggestions||[]).forEach(s=>{
-      const seg=segments.find(x=>x.id===s.segment_id);if(!seg||!codeById(s.code_id))return;
-      const dup=codeApplications.find(a=>a.codeId===s.code_id&&a.anchor.segmentId===s.segment_id&&a.status!=='rejected'&&Math.abs((a.anchor.hint?.start??-9)-s.char_start)<2);
+      const seg=segments.find(x=>x.id===s.segment_id);if(!seg)return;
+      let codeId=s.code_id;
+      if(!codeId&&s.code_name){  // inductive/hybrid: emergent code — find or create (provisional)
+        let c=codeSystem.find(x=>x.name.toLowerCase()===s.code_name.toLowerCase());
+        if(!c){c=createCode({name:s.code_name});c.provisional=true;}
+        codeId=c.id;
+      }
+      if(!codeId||!codeById(codeId))return;
+      const dup=codeApplications.find(a=>a.codeId===codeId&&a.anchor.segmentId===s.segment_id&&a.status!=='rejected'&&Math.abs((a.anchor.hint?.start??-9)-s.char_start)<2);
       if(dup)return;
       const anchor=makeAnchor(s.segment_id,s.char_start,s.char_end);if(!anchor)return;
-      codeApplications.push({id:uid('ca'),codeId:s.code_id,anchor,selectedText:s.quote,source:'llm',
+      codeApplications.push({id:uid('ca'),codeId,anchor,selectedText:s.quote,source:'llm',
         confidence:s.confidence,rationale:s.rationale||'',status:'suggested',reviewer:null,
         createdBy:'model:'+(res.provider||'llm'),createdAt:nowISO()});
       added++;

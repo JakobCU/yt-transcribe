@@ -84,40 +84,62 @@ def _format_codebook(codes: list[dict]) -> str:
     return "\n".join(lines)
 
 
-SYSTEM_PROMPT = """\
-You are a meticulous qualitative coder applying a FIXED codebook to interview transcript segments.
-Rules:
-- Apply ONLY codes defined in the codebook below. Never invent codes (you may *suggest* one separately).
-- A segment may get zero, one, or several codes. Do not over-code: if nothing clearly fits, return no codes.
-- For every code you apply you MUST quote the exact verbatim span from the FOCAL segment that justifies it (copied character-for-character, no paraphrase).
-- Give a one-sentence rationale tied to the code's definition BEFORE deciding (think, then decide).
-- Neighbouring context is provided only to resolve references; code ONLY the focal segment.
-Respond with STRICT JSON only, no prose, in exactly this shape:
-{"codes":[{"code_id":"<id from codebook>","quote":"<verbatim span from focal segment>","rationale":"<one sentence>","confidence":0.0}],"no_code":false,"suggested_new_code":null}
-If nothing fits, return {"codes":[],"no_code":true,"suggested_new_code":null}.
-You may set suggested_new_code to {"name":"...","rationale":"..."} to propose an emergent theme (it will NOT be applied automatically)."""
+_COMMON = (
+    "- A segment may get zero, one, or several codes. Do not over-code: if nothing"
+    " substantive fits (greetings, filler, procedural chatter), return no codes.\n"
+    "- For every code you MUST quote the exact verbatim span from the FOCAL segment"
+    " (copied character-for-character, no paraphrase).\n"
+    "- Give a one-sentence rationale BEFORE deciding (think, then decide).\n"
+    "- Neighbouring context is provided only to resolve references; code ONLY the focal segment.\n"
+    "Respond with STRICT JSON only, no prose."
+)
+
+_SYS_DEDUCTIVE = (
+    "You are a meticulous qualitative coder applying a FIXED codebook to interview transcript segments.\n"
+    "- Apply ONLY codes defined in the codebook below, using their exact id in \"code_id\". Never invent codes.\n"
+    + _COMMON + "\n"
+    '{"codes":[{"code_id":"<id from codebook>","quote":"<verbatim span>","rationale":"<one sentence>","confidence":0.0}],"no_code":false}'
+)
+
+_SYS_INDUCTIVE = (
+    "You are doing INDUCTIVE (open) qualitative coding. There is NO predefined codebook.\n"
+    "- For the focal segment, identify the key theme(s) and assign each a SHORT code name"
+    " (2-5 words, Title Case) that captures what it is about, in the transcript's language.\n"
+    "- Reuse the SAME wording for recurring themes so codes stay consistent across segments.\n"
+    + _COMMON + "\n"
+    '{"codes":[{"name":"<short theme name>","quote":"<verbatim span>","rationale":"<one sentence>","confidence":0.0}],"no_code":false}'
+)
+
+_SYS_HYBRID = (
+    "You are a qualitative coder with a seed codebook (below).\n"
+    "- Apply a codebook code when one clearly fits (its exact id in \"code_id\").\n"
+    "- If the segment shows a relevant theme NOT covered by the codebook, instead propose a SHORT"
+    " new code name (2-5 words) in \"name\" and leave code_id null. Reuse consistent names.\n"
+    + _COMMON + "\n"
+    '{"codes":[{"code_id":"<id or null>","name":"<new name or null>","quote":"<verbatim span>","rationale":"<one sentence>","confidence":0.0}],"no_code":false}'
+)
+
+_SYS_BY_MODE = {"inductive": _SYS_INDUCTIVE, "hybrid": _SYS_HYBRID, "deductive": _SYS_DEDUCTIVE}
 
 
-def build_messages(codes: list[dict], focal: dict, before: list[dict], after: list[dict]) -> tuple[str, str]:
+def build_messages(codes, focal, before, after, mode="deductive"):
     def fmt(seg):
         return f"[{seg.get('speaker', '?')}] {seg.get('text', '')}"
 
-    ctx = []
+    system = _SYS_BY_MODE.get(mode, _SYS_DEDUCTIVE)
+    parts = []
+    if mode != "inductive" and codes:
+        parts.append("CODEBOOK:\n" + _format_codebook(codes))
     if before:
-        ctx.append("Context before (do not code):\n" + "\n".join(fmt(s) for s in before))
+        parts.append("Context before (do not code):\n" + "\n".join(fmt(s) for s in before))
     if after:
-        ctx.append("Context after (do not code):\n" + "\n".join(fmt(s) for s in after))
-    ctx_block = ("\n\n".join(ctx) + "\n\n") if ctx else ""
-
-    user = (
-        "CODEBOOK:\n" + _format_codebook(codes) + "\n\n"
-        + ctx_block
-        + "FOCAL SEGMENT TO CODE:\n"
+        parts.append("Context after (do not code):\n" + "\n".join(fmt(s) for s in after))
+    parts.append(
+        "FOCAL SEGMENT TO CODE:\n"
         + f"speaker: {focal.get('speaker', '?')}\n"
-        + f"text: {focal.get('text', '')}\n\n"
-        + "Return the JSON now."
+        + f"text: {focal.get('text', '')}\n\nReturn the JSON now."
     )
-    return SYSTEM_PROMPT, user
+    return system, "\n\n".join(parts)
 
 
 # --------------------------------------------------------------------------- #
@@ -193,15 +215,15 @@ def _fake_complete(user: str) -> str:
     ids = re.findall(r"^- id: (\S+)", user, re.MULTILINE)
     m = re.search(r"text: (.+)$", user, re.MULTILINE)
     text = m.group(1).strip() if m else ""
-    if not ids or len(text) < 8:
-        return json.dumps({"codes": [], "no_code": True, "suggested_new_code": None})
+    if len(text) < 8:
+        return json.dumps({"codes": [], "no_code": True})
     quote = text[: min(40, len(text))].strip()
-    return json.dumps({
-        "codes": [{"code_id": ids[0], "quote": quote,
-                   "rationale": "Fake-Coder: erste Codebook-Kategorie zur Demonstration.",
-                   "confidence": 0.5}],
-        "no_code": False, "suggested_new_code": None,
-    })
+    item = {"quote": quote, "rationale": "Fake-Coder zur Demonstration.", "confidence": 0.5}
+    if ids:
+        item["code_id"] = ids[0]          # deductive/hybrid: reuse a codebook id
+    else:
+        item["name"] = "Fake-Thema"       # inductive: emergent code name
+    return json.dumps({"codes": [item], "no_code": False})
 
 
 # --------------------------------------------------------------------------- #
