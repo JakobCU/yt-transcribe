@@ -66,3 +66,20 @@ You also need to accept the terms for these models:
 Produces two files:
 - `filename.txt` — timestamped text with speaker labels
 - `filename.srt` — subtitle file with speaker labels
+
+## Web tool + backend
+
+Beyond the CLI, the repo includes a browser tool for human correction and
+LLM-assisted qualitative coding of transcripts:
+
+- **`tool/`** — the Transkript-Checker frontend (correction, speaker naming,
+  highlights, comments, thematic coding with an editable YAML codebook). Runs as
+  an offline single-file (`python tool/build.py`, then double-click — nothing
+  uploaded) or served by the backend. See [tool/README.md](tool/README.md).
+- **`server/`** — a FastAPI backend that serves the tool and runs this pipeline
+  as background jobs: upload audio → transcribe/diarize → opens in the tool.
+  `pip install -e ".[server]"` then `uvicorn server.app:app`. See
+  [server/README.md](server/README.md).
+
+The phased plan (team server, multi-user, pluggable Claude/Ollama LLM coding) is
+in [tool/docs/ENGINEERING_BRIEF.md](tool/docs/ENGINEERING_BRIEF.md).

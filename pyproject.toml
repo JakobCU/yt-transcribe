@@ -16,5 +16,16 @@ dependencies = [
     "tqdm",
 ]
 
+[project.optional-dependencies]
+# Web backend that serves the Transkript-Checker tool and runs the pipeline as
+# jobs. Install with:  pip install -e ".[server]"
+server = [
+    "fastapi",
+    "uvicorn[standard]",
+    "python-multipart",
+    "anthropic",   # Claude provider for LLM coding (optional; key in .env)
+    "requests",    # Ollama provider (local LLM)
+]
+
 [project.scripts]
 yt-transcribe = "yt_transcribe.cli:main"
