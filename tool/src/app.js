@@ -772,10 +772,13 @@ $('cbLoad').onclick=()=>pick('.yaml,.yml,text/yaml,application/x-yaml,text/plain
    the finished transcript loads straight into the tool. In offline single-file
    mode there is no backend, the probe fails quietly, and the button stays hidden. */
 const backend={available:false,diarization:false,fake:false};
-const STAGE_LABEL={queued:'In Warteschlange',starting:'Startet…',convert:'Audio vorbereiten',
-  transcribe:'Transkribieren (kann dauern)…',diarize:'Sprecher erkennen…',merge:'Zusammenführen…',code:'Kodiere…',done:'Fertig'};
-function showJobBanner(msg,frac,done){const b=$('jobBanner');$('jobMsg').textContent=msg;
-  $('jobFill').style.width=Math.round(clamp(frac||0,0,1)*100)+'%';b.classList.add('show');$('jobCancel').style.display=done?'':'none';}
+const STAGE_LABEL={queued:'In Warteschlange',starting:'Startet…',convert:'Audio vorbereiten…',
+  transcribe:'Transkription',diarize:'Sprecher-Erkennung…',merge:'Zusammenführen…',store:'Audio speichern…',code:'Kodiere…',done:'Fertig'};
+function fmtDur(s){s=Math.max(0,Math.round(s));const m=Math.floor(s/60),ss=s%60;return m?m+':'+String(ss).padStart(2,'0')+' min':ss+' s';}
+function showJobBanner(msg,frac,done){const b=$('jobBanner'),fill=$('jobFill');$('jobMsg').textContent=msg;
+  if(frac==null){b.classList.add('indet');fill.style.width='';}
+  else{b.classList.remove('indet');fill.style.width=Math.round(clamp(frac,0,1)*100)+'%';}
+  b.classList.add('show');$('jobCancel').style.display=done?'':'none';}
 function hideJobBanner(){$('jobBanner').classList.remove('show');}
 let activeJobFinish=null;  // closes the current job's SSE/polling
 $('jobCancel').onclick=()=>{if(activeJobFinish)activeJobFinish();hideJobBanner();};
@@ -817,14 +820,21 @@ $('txStart').onclick=async()=>{
 };
 function trackJob(jobId,fname,onDone){
   if(activeJobFinish)activeJobFinish();  // close any previous job's stream first
-  let es=null,polling=null,finished=false;
+  let es=null,polling=null,finished=false,txStart=0;
   const finish=()=>{finished=true;if(es){es.onmessage=null;es.close();}if(polling)clearInterval(polling);if(activeJobFinish===finish)activeJobFinish=null;};
   activeJobFinish=finish;
   const onUpdate=(job)=>{
     if(finished)return;
     if(job.error){finish();showJobBanner('Fehler: '+job.error,0,true);return;}
     if(job.status==='done'){finish();(onDone||(()=>loadJobResult(jobId,fname)))();return;}
-    showJobBanner('„'+fname+'" — '+(STAGE_LABEL[job.stage]||job.stage),job.progress||0,false);
+    if(job.stage==='transcribe'&&job.progress>0){
+      if(!txStart)txStart=Date.now();
+      const el=(Date.now()-txStart)/1000;let eta='';
+      if(job.progress>0.03&&el>2)eta=' · noch '+fmtDur(el/job.progress*(1-job.progress));
+      showJobBanner('„'+fname+'" — Transkription '+Math.round(job.progress*100)+'%'+eta,job.progress,false);
+    }else{
+      showJobBanner('„'+fname+'" — '+(STAGE_LABEL[job.stage]||job.stage),null,false);  // indeterminate
+    }
   };
   const startPolling=()=>{if(polling)return;polling=setInterval(async()=>{try{const r=await fetch('/api/jobs/'+jobId,{cache:'no-store'});if(r.ok)onUpdate(await r.json());}catch(_){}}, 1200);};
   try{

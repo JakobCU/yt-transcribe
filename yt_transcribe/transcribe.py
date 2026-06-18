@@ -1,7 +1,10 @@
 """Transcribe audio with speaker diarization using Whisper + pyannote.audio."""
 
+import contextlib
+import importlib
 import subprocess
 import time
+import types
 from pathlib import Path
 
 import torch
@@ -226,6 +229,49 @@ def segments_to_text(segments) -> str:
     )
 
 
+@contextlib.contextmanager
+def _whisper_progress(emit):
+    """Hook Whisper's internal tqdm (which counts audio frames) to report real
+    transcription progress as a fraction. Scoped + restored; safe because the
+    server runs one transcription at a time."""
+    try:
+        wt = importlib.import_module("whisper.transcribe")
+        orig = wt.tqdm
+    except Exception:
+        yield
+        return
+
+    class _PBar:
+        def __init__(self, total=None, **kw):
+            self.total = total or 1
+            self.n = 0
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def update(self, d=1):
+            self.n += d
+            try:
+                emit("transcribe", max(0.0, min(0.999, self.n / self.total)))
+            except Exception:
+                pass
+
+        def close(self):
+            pass
+
+        def set_postfix(self, *a, **k):
+            pass
+
+    wt.tqdm = types.SimpleNamespace(tqdm=_PBar)
+    try:
+        yield
+    finally:
+        wt.tqdm = orig
+
+
 def transcribe_segments(
     audio_path: str,
     model: str = "large-v3",
@@ -250,7 +296,8 @@ def transcribe_segments(
     wav_path = convert_to_wav(audio_path)
 
     emit("transcribe", 0.0)
-    result = run_transcription(wav_path, model, device, language)
+    with _whisper_progress(emit):
+        result = run_transcription(wav_path, model, device, language)
     emit("transcribe", 1.0)
 
     diarization = None

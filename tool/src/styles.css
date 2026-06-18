@@ -224,6 +224,8 @@ pre.hdr{white-space:pre-wrap;font:11px/1.55 var(--mono);color:var(--muted);backg
 #jobBanner{background:var(--accent-soft);border-color:var(--accent)}
 #jobBanner .jobbar{flex:1;height:8px;background:color-mix(in srgb,var(--accent) 22%,transparent);border-radius:999px;overflow:hidden;min-width:120px;max-width:340px}
 #jobBanner #jobFill{height:100%;width:0;background:var(--accent);transition:width .3s}
+#jobBanner.indet #jobFill{width:32%;transition:none;animation:indet 1.2s linear infinite}
+@keyframes indet{0%{transform:translateX(-110%)}100%{transform:translateX(340%)}}
 #txModal .txrow{display:flex;align-items:center;gap:10px;margin:10px 0}
 #txModal .txrow>label:first-child{width:80px;color:var(--muted);flex:0 0 auto;font-size:13px}
 #txModal .txrow input[type=text],#txModal .txrow select,#txModal .txrow input[type=file]{flex:1;font:inherit;font-size:13px;padding:6px 9px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink)}
