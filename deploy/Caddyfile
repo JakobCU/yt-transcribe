@@ -1,0 +1,43 @@
+# transkript::studio — reverse proxy with automatic HTTPS (Let's Encrypt).
+#
+# Caddy terminates TLS for your public domain and proxies to the app. It works
+# unchanged in two setups, switched purely by environment variables:
+#   • Native (Windows now): app runs on the same host  -> TC_UPSTREAM=127.0.0.1
+#   • Full Docker stack (Linux GPU server later): app is a container -> TC_UPSTREAM=app
+#
+# Required env: TC_DOMAIN (e.g. studio.example.org), TC_TLS_EMAIL (for LE notices).
+# Optional env: TC_UPSTREAM (default 127.0.0.1), TC_APP_PORT (default 8000).
+#
+# Prereqs for valid certs: TC_DOMAIN's DNS A/AAAA record points at this machine,
+# and inbound ports 80 + 443 are open. Test config:  caddy validate --config Caddyfile
+{
+	email {$TC_TLS_EMAIL}
+}
+
+{$TC_DOMAIN} {
+	encode zstd gzip
+
+	# Hardening headers (TLS itself is handled by Caddy automatically).
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		X-Frame-Options "SAMEORIGIN"
+		-Server
+	}
+
+	# Server-Sent Events (live transcription/coding progress) must stream, not
+	# buffer — flush every write so the progress bar updates in real time.
+	handle /api/jobs/*/events {
+		reverse_proxy {$TC_UPSTREAM:127.0.0.1}:{$TC_APP_PORT:8000} {
+			flush_interval -1
+		}
+	}
+
+	# Everything else: frontend, JSON API, and large multipart uploads
+	# (audio up to the app's 5 GiB cap) stream straight through — Caddy does not
+	# buffer request bodies, so big uploads are fine.
+	handle {
+		reverse_proxy {$TC_UPSTREAM:127.0.0.1}:{$TC_APP_PORT:8000}
+	}
+}

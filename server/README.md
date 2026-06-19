@@ -93,9 +93,21 @@ coders annotate the same material independently (intercoder / LLM-vs-human).
 `/api/transcribe` (with a `project_id`) persists its result as a project
 document; `/api/transcribe` and `/api/code` now require login.
 
-## Notes / limits (current single-process cut)
+## Production deploy
+
+For a hardened, self-hosted setup — **PostgreSQL** (`pip install -e ".[server,postgres]"`,
+set `DATABASE_URL=postgresql+psycopg://…`), **HTTPS** via Caddy + Let's Encrypt,
+run as always-on services, with backups — see **[`deploy/README.md`](../deploy/README.md)**.
+Native on the Windows GPU box now; a full Docker stack (GPU passthrough) for a
+Linux GPU server later. Set `COOKIE_SECURE=1` behind TLS.
+
+## Notes / limits (single-process design)
 
 - Upload cap 5 GiB; the job registry keeps the last 200 jobs in memory.
-- No auth yet — bind to `127.0.0.1` or put it behind a reverse proxy you control.
+- Auth is on (argon2 session cookies, domain-restricted registration). Still,
+  bind the app to `127.0.0.1` and let Caddy (or your reverse proxy) face the network.
+- **Exactly one uvicorn worker** — the in-process job queue and resident GPU
+  models are per-process state; never run `--workers > 1`.
 - On Windows, run natively (conda + CUDA). Don't containerize the GPU worker
-  (GPU-in-Docker on Windows is a pain zone — see the brief).
+  (GPU-in-Docker on Windows is a pain zone — see the brief). On Linux, GPU-in-Docker
+  works (see `deploy/Dockerfile`).

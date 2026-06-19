@@ -1,0 +1,35 @@
+# Keep secrets, local data, and build cruft OUT of the Docker build context/image.
+.git
+.gitignore
+.claude
+.env
+*.env
+!deploy/.env.production.example
+
+# local persistence / uploads / audio — never bake into an image
+server/data
+server/media
+
+# build artifacts & samples
+tool/dist
+tool/sample
+build
+dist
+*.egg-info
+
+# python / editor cruft
+**/__pycache__
+**/*.pyc
+.venv
+venv
+.idea
+.vscode
+
+# loose research data at repo root (also gitignored)
+*.srt
+*.txt
+*.vtt
+*.zip
+Transcripts/
+output/
+*.log

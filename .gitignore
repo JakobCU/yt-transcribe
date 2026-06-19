@@ -22,6 +22,10 @@ tool/dist/
 server/media/
 # sqlite database + data
 server/data/
+# deploy: real prod env, backups, service logs (never commit)
+deploy/.env
+deploy/backups/
+deploy/logs/
 
 # --- Local research data & scratch at repo ROOT (never commit interview material) ---
 # Loose transcripts/subtitles/exports dropped in the repo root during local runs.
