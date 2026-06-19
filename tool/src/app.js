@@ -1062,7 +1062,8 @@ async function openServerDocument(docId){
   catch(err){toast('Fehler: '+err.message);return;}
   transcriptName=doc.name||'Dokument';
   installDoc(normalizeDoc(doc,doc.name,doc.header||''));
-  serverDoc={id:docId,projectId:doc.projectId,rev:doc.rev||0,conflict:false};
+  serverDoc={id:docId,projectId:doc.projectId,rev:doc.rev||0,
+             layerRev:doc.layerRev||0,cbRev:doc.codebookRev||0,conflict:false};
   captureServerBaseline();
   if(doc.hasAudio)loadMediaUrl('/api/documents/'+docId+'/audio');
   else{media.removeAttribute('src');media.classList.add('audioOnly');$('noMedia').style.display='';}
@@ -1074,28 +1075,44 @@ function captureServerBaseline(){
   lastLayerJson=JSON.stringify({codeApplications,highlights,comments});
   lastCbJson=JSON.stringify({codeSystem,coding:codingCfg});
 }
+let _flushing=false,_flushAgain=false;
 async function serverSaveFlush(){
-  if(!serverDoc)return;
-  const tj=JSON.stringify({speakers:speakerList,segments,header:headerText});
-  if(tj!==lastTextJson&&!serverDoc.conflict){
-    try{const r=await fetch('/api/documents/'+serverDoc.id+'/text',{method:'PUT',headers:{'Content-Type':'application/json'},
+  if(!serverDoc||serverDoc.conflict)return;          // one conflict freezes ALL channels until reload
+  if(_flushing){_flushAgain=true;return;}            // serialize: never let two flushes race on a rev
+  _flushing=true;
+  try{
+    // 1) shared transcript text — optimistic-locked on doc.rev
+    const tj=JSON.stringify({speakers:speakerList,segments,header:headerText});
+    if(tj!==lastTextJson){
+      const r=await fetch('/api/documents/'+serverDoc.id+'/text',{method:'PUT',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({speakers:speakerList,segments,header:headerText,rev:serverDoc.rev})});
-      if(r.status===409){serverDoc.conflict=true;showConflict();}
-      else if(r.ok){lastTextJson=tj;serverDoc.rev=(await r.json()).rev;}}catch(_){}
-  }
-  const lj=JSON.stringify({codeApplications,highlights,comments});
-  if(lj!==lastLayerJson){
-    try{const r=await fetch('/api/documents/'+serverDoc.id+'/layer',{method:'PUT',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({codeApplications,highlights,comments})});if(r.ok)lastLayerJson=lj;}catch(_){}
-  }
-  const cj=JSON.stringify({codeSystem,coding:codingCfg});
-  if(cj!==lastCbJson&&serverDoc.projectId){
-    try{const r=await fetch('/api/projects/'+serverDoc.projectId+'/codebook',{method:'PUT',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({codeSystem,coding:codingCfg})});if(r.ok)lastCbJson=cj;}catch(_){}
-  }
+      if(r.status===409){serverDoc.conflict=true;showConflict('text');return;}
+      if(r.ok){lastTextJson=tj;serverDoc.rev=(await r.json()).rev;}
+    }
+    // 2) this user's own coding layer — optimistic-locked on layerRev (guards stale tabs)
+    const lj=JSON.stringify({codeApplications,highlights,comments});
+    if(lj!==lastLayerJson){
+      const r=await fetch('/api/documents/'+serverDoc.id+'/layer',{method:'PUT',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({codeApplications,highlights,comments,rev:serverDoc.layerRev})});
+      if(r.status===409){serverDoc.conflict=true;showConflict('layer');return;}
+      if(r.ok){lastLayerJson=lj;serverDoc.layerRev=(await r.json()).rev;}
+    }
+    // 3) shared project codebook — optimistic-locked on cbRev (no silent last-writer-wins)
+    const cj=JSON.stringify({codeSystem,coding:codingCfg});
+    if(cj!==lastCbJson&&serverDoc.projectId){
+      const r=await fetch('/api/projects/'+serverDoc.projectId+'/codebook',{method:'PUT',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({codeSystem,coding:codingCfg,rev:serverDoc.cbRev})});
+      if(r.status===409){serverDoc.conflict=true;showConflict('codebook');return;}
+      if(r.ok){lastCbJson=cj;serverDoc.cbRev=(await r.json()).rev;}
+    }
+  }catch(_){/* network hiccup — keep baselines, retry on next save() */}
+  finally{_flushing=false;if(_flushAgain){_flushAgain=false;serverSaveFlush();}}
 }
-function showConflict(){const b=$('restoreBanner');
-  $('restoreMsg').textContent='⚠ Transkript wurde von jemand anderem geändert. Deine Text-Änderungen werden nicht gespeichert.';
+function showConflict(kind){const b=$('restoreBanner');
+  const msg=kind==='codebook'?'⚠ Das Codebook wurde von jemand anderem geändert. Zum Weiterarbeiten neu laden (deine Kodierungen bleiben erhalten).'
+    :kind==='layer'?'⚠ Deine Kodier-Ebene wurde anderswo (anderes Fenster/Gerät) geändert. Zum Weiterarbeiten neu laden.'
+    :'⚠ Das Transkript wurde von jemand anderem geändert. Änderungen werden erst nach Neuladen wieder gespeichert.';
+  $('restoreMsg').textContent=msg;
   $('resetState').textContent='Neu laden';b.classList.add('show');
   $('resetState').onclick=()=>{const id=serverDoc.id;serverDoc=null;b.classList.remove('show');openServerDocument(id);};}
 

@@ -97,9 +97,14 @@ def get_codebook(pid: str, s: DBSession = Depends(get_db), user: db.User = Depen
 @router.put("/{pid}/codebook")
 def put_codebook(pid: str, body: dict, s: DBSession = Depends(get_db), user: db.User = Depends(require_user)):
     proj, _ = member_or_403(s, user, pid)
+    cur = proj.codebook_rev or 0
+    if "rev" in body and body["rev"] != cur:
+        # the shared codebook was edited by another coder — refuse to silently overwrite
+        raise HTTPException(409, {"message": "Das Codebook wurde zwischenzeitlich geändert.", "rev": cur})
     proj.codebook = {"codeSystem": body.get("codeSystem") or [], "coding": body.get("coding") or {}}
+    proj.codebook_rev = cur + 1
     s.commit()
-    return {"ok": True}
+    return {"rev": proj.codebook_rev}
 
 
 @router.get("/{pid}/documents")

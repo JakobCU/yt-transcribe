@@ -72,6 +72,7 @@ class Project(Base):
     name: Mapped[str] = mapped_column(String)
     owner_id: Mapped[str] = mapped_column(ForeignKey("users.id"))
     codebook: Mapped[dict] = mapped_column(JSON, default=dict)  # {codeSystem, coding}
+    codebook_rev: Mapped[int] = mapped_column(Integer, default=0)  # optimistic lock for the shared codebook
     created_at: Mapped[datetime] = mapped_column(DateTime, default=now)
 
     members: Mapped[list["ProjectMember"]] = relationship(cascade="all, delete-orphan")
@@ -110,6 +111,7 @@ class UserLayer(Base):
     code_applications: Mapped[list] = mapped_column(JSON, default=list)
     highlights: Mapped[list] = mapped_column(JSON, default=list)
     comments: Mapped[list] = mapped_column(JSON, default=list)
+    layer_rev: Mapped[int] = mapped_column(Integer, default=0)  # optimistic lock for this user's own layer (guards stale tabs/devices)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=now, onupdate=now)
 
 
@@ -126,3 +128,9 @@ def _migrate() -> None:
         cols = {r[1] for r in conn.exec_driver_sql("PRAGMA table_info(documents)")}
         if "audio" not in cols:
             conn.exec_driver_sql("ALTER TABLE documents ADD COLUMN audio VARCHAR DEFAULT ''")
+        lcols = {r[1] for r in conn.exec_driver_sql("PRAGMA table_info(user_layers)")}
+        if "layer_rev" not in lcols:
+            conn.exec_driver_sql("ALTER TABLE user_layers ADD COLUMN layer_rev INTEGER DEFAULT 0")
+        pcols = {r[1] for r in conn.exec_driver_sql("PRAGMA table_info(projects)")}
+        if "codebook_rev" not in pcols:
+            conn.exec_driver_sql("ALTER TABLE projects ADD COLUMN codebook_rev INTEGER DEFAULT 0")

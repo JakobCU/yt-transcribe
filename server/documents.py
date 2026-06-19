@@ -83,9 +83,11 @@ def get_document(did: str, s: DBSession = Depends(get_db), user: db.User = Depen
         "docId": doc.id, "rev": doc.rev, "projectId": doc.project_id, "name": doc.name,
         "coding": cb.get("coding") or {"mode": "inductive"},
         "codeSystem": cb.get("codeSystem") or [],
+        "codebookRev": proj.codebook_rev or 0,
         "codeApplications": layer.code_applications if layer else [],
         "highlights": layer.highlights if layer else [],
         "comments": layer.comments if layer else [],
+        "layerRev": (layer.layer_rev or 0) if layer else 0,
         "hasAudio": bool(doc.audio),
     })
     return shared
@@ -130,11 +132,16 @@ def save_layer(did: str, body: dict, s: DBSession = Depends(get_db), user: db.Us
         raise HTTPException(404, "Dokument nicht gefunden")
     member_or_403(s, user, doc.project_id)
     layer = _layer(s, did, user.id)
+    cur = layer.layer_rev or 0
+    if "rev" in body and body["rev"] != cur:
+        # same user's layer changed elsewhere (another tab/device) — don't clobber it
+        raise HTTPException(409, {"message": "Deine Kodier-Ebene wurde anderswo geändert.", "rev": cur})
     layer.code_applications = body.get("codeApplications") or []
     layer.highlights = body.get("highlights") or []
     layer.comments = body.get("comments") or []
+    layer.layer_rev = cur + 1
     s.commit()
-    return {"ok": True}
+    return {"rev": layer.layer_rev}
 
 
 @router.delete("/api/documents/{did}")
