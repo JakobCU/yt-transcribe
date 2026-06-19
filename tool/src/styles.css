@@ -80,7 +80,8 @@ select.flt{font:inherit;font-size:13px;padding:6px 9px;border:1px solid var(--li
 #player.audioOnly{width:0;height:0;max-height:0}
 #noMedia{font-size:13px;color:var(--muted)}
 .rateWrap{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
-.rateWrap b{font-family:var(--mono);color:var(--ink)}
+.rateWrap b{font-family:var(--mono);color:var(--ink);min-width:34px;text-align:right}
+.rateWrap input[type=range]{width:88px;accent-color:var(--accent);cursor:pointer}
 
 /* ---------- transcript ---------- */
 main{max-width:1000px;margin:0 auto;padding:16px 14px 40vh}
