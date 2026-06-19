@@ -18,13 +18,20 @@ import uuid
 from pathlib import Path
 
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import StreamingResponse
-from fastapi.staticfiles import StaticFiles
 
-from server import auth, coding, db, documents, jobs, llm, pipeline, projects
-
+# Load .env BEFORE importing server.* — server.db reads DATABASE_URL and server.auth
+# reads COOKIE_SECURE at IMPORT time, so the environment must be populated first.
+# Otherwise a .env-only config (the native / NSSM-service path) silently falls back
+# to SQLite and non-Secure cookies.
 REPO_ROOT = Path(__file__).resolve().parent.parent
+load_dotenv(REPO_ROOT / ".env")
+
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile  # noqa: E402
+from fastapi.responses import StreamingResponse  # noqa: E402
+from fastapi.staticfiles import StaticFiles  # noqa: E402
+
+from server import auth, coding, db, documents, jobs, llm, pipeline, projects  # noqa: E402
+
 FRONTEND_DIR = REPO_ROOT / "tool" / "src"
 MEDIA_DIR = REPO_ROOT / "server" / "media"
 MEDIA_DIR.mkdir(parents=True, exist_ok=True)
@@ -32,7 +39,6 @@ MEDIA_DIR.mkdir(parents=True, exist_ok=True)
 MAX_UPLOAD = 5 * 1024 ** 3   # 5 GiB cap so a client can't fill the disk
 SSE_MAX_SECONDS = 6 * 3600   # stop streaming a single job after 6h
 
-load_dotenv(REPO_ROOT / ".env")
 db.init_db()
 
 app = FastAPI(title="Transkript-Checker")
