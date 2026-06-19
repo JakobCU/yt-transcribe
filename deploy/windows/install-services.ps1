@@ -65,7 +65,7 @@ nssm install TranskriptStudio "$Python" `
 nssm set TranskriptStudio AppDirectory "$repo"
 nssm set TranskriptStudio AppStdout "$logs\app.out.log"
 nssm set TranskriptStudio AppStderr "$logs\app.err.log"
-nssm set TranskriptStudio AppEnvironmentExtra "PYTHONUNBUFFERED=1"
+nssm set TranskriptStudio AppEnvironmentExtra "PYTHONUNBUFFERED=1" "PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True"
 nssm set TranskriptStudio Start SERVICE_AUTO_START
 nssm set TranskriptStudio AppExit Default Restart
 

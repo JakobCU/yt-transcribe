@@ -24,6 +24,27 @@ _WHISPER_CACHE: dict = {}
 _DIARIZE_CACHE: dict = {}
 
 
+def _offload_to_cpu(cache: dict) -> None:
+    """Move every cached model in `cache` to CPU and release the freed VRAM.
+
+    On a small GPU (e.g. a 6 GB laptop RTX 3060) Whisper-large and the pyannote
+    diarizer don't both fit. We keep only ONE big model resident on the GPU at a
+    time: before transcription we offload the diarizer, before diarization we
+    offload Whisper. No-op when already on CPU / no CUDA."""
+    moved = False
+    for m in cache.values():
+        try:
+            m.to(torch.device("cpu"))
+            moved = True
+        except Exception:
+            pass
+    if moved:
+        try:
+            torch.cuda.empty_cache()
+        except Exception:
+            pass
+
+
 def format_timestamp(seconds: float) -> str:
     """Convert seconds to HH:MM:SS,mmm format."""
     h = int(seconds // 3600)
@@ -76,6 +97,9 @@ def run_diarization(audio_path: str, hf_token: str, device: str):
     from pyannote.audio import Pipeline
 
     print("\n[2/3] Running speaker diarization...")
+    if device == "cuda":
+        # Free the resident Whisper model from VRAM so diarization fits on a small GPU.
+        _offload_to_cpu(_WHISPER_CACHE)
     cache_key = ("pyannote/speaker-diarization-3.1", device)
     pipeline = _DIARIZE_CACHE.get(cache_key)
     if pipeline is None:
@@ -83,8 +107,8 @@ def run_diarization(audio_path: str, hf_token: str, device: str):
             "pyannote/speaker-diarization-3.1",
             token=hf_token,
         )
-        pipeline.to(torch.device(device))
         _DIARIZE_CACHE[cache_key] = pipeline
+    pipeline.to(torch.device(device))  # ensure on the target device (may have been offloaded after a prior job)
 
     # Load audio via soundfile to bypass broken torchcodec on Windows
     data, sample_rate = soundfile.read(audio_path)
@@ -110,6 +134,11 @@ def run_transcription(audio_path: str, model_name: str, device: str, language: s
     if model is None:
         model = whisper.load_model(model_name, device=device)
         _WHISPER_CACHE[cache_key] = model
+    if device == "cuda":
+        # Keep only one big model on the GPU: free any resident diarizer, and make
+        # sure Whisper is back on the GPU (it may have been offloaded after a prior job).
+        _offload_to_cpu(_DIARIZE_CACHE)
+        model.to(torch.device(device))
 
     print(f"  Transcribing (this may take a while for long audio)...")
     transcribe_opts = {"verbose": False, "fp16": device == "cuda"}
