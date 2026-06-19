@@ -24,12 +24,31 @@ DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 os.makedirs(DATA_DIR, exist_ok=True)
 DB_URL = os.environ.get("DATABASE_URL", f"sqlite:///{os.path.join(DATA_DIR, 'app.db')}")
 
+_IS_SQLITE = DB_URL.startswith("sqlite")
 engine = create_engine(
     DB_URL,
     echo=False,
     future=True,
-    connect_args={"check_same_thread": False} if DB_URL.startswith("sqlite") else {},
+    connect_args={"check_same_thread": False} if _IS_SQLITE else {},
+    # Postgres (prod): transparently recycle stale/dropped pooled connections so a
+    # DB restart or idle timeout doesn't surface as a 500 on the next request.
+    pool_pre_ping=not _IS_SQLITE,
+    pool_recycle=1800 if not _IS_SQLITE else -1,
 )
+
+if _IS_SQLITE:
+    # WAL lets readers and the single writer coexist without "database is locked";
+    # NORMAL is the safe+fast durability point under WAL. (No effect on Postgres.)
+    from sqlalchemy import event
+
+    @event.listens_for(engine, "connect")
+    def _sqlite_pragmas(dbapi_conn, _rec):  # noqa: ANN001
+        cur = dbapi_conn.cursor()
+        cur.execute("PRAGMA journal_mode=WAL")
+        cur.execute("PRAGMA synchronous=NORMAL")
+        cur.execute("PRAGMA foreign_keys=ON")
+        cur.close()
+
 SessionLocal = sessionmaker(bind=engine, expire_on_commit=False, future=True)
 
 

@@ -28,6 +28,12 @@ server = [
     "sqlalchemy>=2.0",  # team server: persistence
     "argon2-cffi",      # team server: password hashing
 ]
+# Production deploy: PostgreSQL driver (psycopg 3). Install with:
+#   pip install -e ".[server,postgres]"
+# then set DATABASE_URL=postgresql+psycopg://user:pass@host:5432/dbname
+postgres = [
+    "psycopg[binary]>=3.1",
+]
 
 [project.scripts]
 yt-transcribe = "yt_transcribe.cli:main"
