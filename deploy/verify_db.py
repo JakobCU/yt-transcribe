@@ -17,6 +17,13 @@ from __future__ import annotations
 
 import os
 import sys
+from pathlib import Path
+
+from dotenv import load_dotenv
+
+# Pick up DATABASE_URL from the repo-root .env, just like the app does, so this
+# works out of the box on the native deploy without re-exporting the env var.
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
 if os.environ.get("DATABASE_URL", "").startswith("sqlite") or not os.environ.get("DATABASE_URL"):
     print("WARNING: DATABASE_URL is not set to a non-sqlite DB — this test is meant "
