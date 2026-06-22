@@ -1028,9 +1028,13 @@ async function applyCodingResult(jobId){
       if(!n.name)return;const exists=codeSystem.find(c=>c.name.toLowerCase()===n.name.toLowerCase());
       if(!exists){const c=createCode({name:n.name});c.provisional=true;c.definition=n.rationale||'';}
     });
+    if(res.run){codingCfg.runs=codingCfg.runs||[];codingCfg.runs.push(res.run);}  // audit trail (Lincoln & Guba)
     hideJobBanner();render();renderCodes();save();
-    const st=res.stats||{};
-    toast(`KI-Kodierung: ${added} Vorschläge`+(st.invalid_quotes?` · ${st.invalid_quotes} ohne gültiges Zitat verworfen`:''));
+    const st=res.stats||{}, run=res.run||{};
+    toast(`KI-Kodierung: ${added} Vorschläge`
+      +(st.merged?` · ${st.merged} ähnliche Codes zusammengeführt`:'')
+      +(st.invalid_quotes?` · ${st.invalid_quotes} ohne gültiges Zitat verworfen`:'')
+      +(run.model?` · ${esc(run.model)} (T=${run.temperature})`:''));
     $('cpanel').classList.remove('show');$('codepanel').classList.add('show');renderReview();
   }catch(err){showJobBanner('Fehler beim Laden: '+err.message,0,true);}
 }

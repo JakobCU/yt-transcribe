@@ -143,6 +143,58 @@ def build_messages(codes, focal, before, after, mode="deductive"):
 
 
 # --------------------------------------------------------------------------- #
+# Batched inductive/hybrid with a RUNNING codebook (codes accumulate) +
+# a final consolidation pass that merges near-duplicate emergent codes.
+# --------------------------------------------------------------------------- #
+
+_SYS_BATCH = (
+    "You assist qualitative coding — you propose CANDIDATE codes only; a human reviews and decides.\n"
+    "You are coding a BATCH of interview segments. A running CODEBOOK SO FAR is given.\n"
+    "- REUSE an existing code (its EXACT name) whenever it fits — this is essential so codes accumulate"
+    " consistently across the whole transcript. Create a NEW code ONLY for a genuinely new theme:"
+    " a SHORT name (2-5 words, Title Case), in the transcript's language. Reuse beats inventing.\n"
+    "- A segment may get zero, one, or several codes. Do not over-code: greetings, filler and procedural"
+    " chatter get no code.\n"
+    "- For every code, quote the EXACT verbatim span from THAT segment (copied character-for-character).\n"
+    "- One short rationale per code (think, then decide). Code ONLY the listed segments.\n"
+    "Respond with STRICT JSON only, no prose:\n"
+    '{"segments":[{"id":"<segment id>","codes":[{"code":"<existing or new name>","quote":"<verbatim span>","rationale":"<one sentence>","confidence":0.0}]}]}'
+)
+
+_SYS_CONSOLIDATE = (
+    "You consolidate a list of qualitative codes by merging NEAR-DUPLICATES that mean the same thing into"
+    " one canonical code. Pick the clearest canonical name (prefer one already in the list). Do NOT merge"
+    " codes that capture genuinely distinct themes — when in doubt, keep them separate.\n"
+    'Respond with STRICT JSON only: {"merges":[{"canonical":"<name>","variants":["<other name>","..."]}]}'
+)
+
+
+def build_batch_messages(seed_codes, running_codes, segments, mode="inductive"):
+    cb = []
+    for c in (seed_codes or []):
+        if c.get("isCodable") is False:
+            continue
+        d = c.get("definition")
+        cb.append(f"- {c.get('name', c['id'])}" + (f" — {d}" if d else "") + "  [seed]")
+    for r in (running_codes or []):
+        cb.append(f"- {r['name']}  (bereits {r.get('count', 0)}x verwendet)")
+    parts = [
+        "CODEBOOK SO FAR (reuse these EXACT names when they fit):\n"
+        + ("\n".join(cb) if cb else "—(noch leer — lege passende neue Codes an)"),
+        "SEGMENTS TO CODE (code each by its id):\n"
+        + "\n".join(f"[{s.get('id')}] ({s.get('speaker', '?')}): {s.get('text', '')}" for s in segments),
+        "Return the JSON now.",
+    ]
+    return _SYS_BATCH, "\n\n".join(parts)
+
+
+def build_consolidation_messages(running_codes):
+    lst = "\n".join(f"- {r['name']}  ({r.get('count', 0)}x)" for r in running_codes)
+    return _SYS_CONSOLIDATE, ("CODES (name · uses):\n" + lst
+                              + "\n\nReturn the merges JSON now (empty list if nothing should be merged).")
+
+
+# --------------------------------------------------------------------------- #
 # Providers
 # --------------------------------------------------------------------------- #
 
@@ -208,10 +260,26 @@ def _ollama_complete(model: str, system: str, user: str, temperature: float) -> 
 
 
 def _fake_complete(user: str) -> str:
-    """Deterministic suggestion: code the focal segment with the first codebook
-    code whose name/keyword appears, quoting a real substring (so substring
-    validation passes). Exercises the whole loop without a model."""
-    # crude parse of the prompt we built
+    """Deterministic canned responses for testing without a model — handles all
+    three prompt shapes (batched running-codebook, consolidation, single-segment
+    deductive), always quoting a real substring so validation passes."""
+    # 1) batched inductive/hybrid: one emergent code per segment, REUSING a single
+    #    name so codes accumulate (demonstrates the running-codebook behaviour).
+    if "SEGMENTS TO CODE" in user:
+        segs = re.findall(r"^\[([^\]]+)\] \([^)]*\): (.+)$", user, re.MULTILINE)
+        out = []
+        for sid, text in segs:
+            t = text.strip()
+            if len(t) < 8:
+                continue
+            out.append({"id": sid, "codes": [{"code": "Fake-Thema",
+                       "quote": t[: min(40, len(t))].strip(),
+                       "rationale": "Fake-Coder.", "confidence": 0.5}]})
+        return json.dumps({"segments": out})
+    # 2) consolidation pass: nothing to merge in the fake.
+    if user.lstrip().startswith("CODES (name"):
+        return json.dumps({"merges": []})
+    # 3) single-segment deductive (legacy build_messages format).
     ids = re.findall(r"^- id: (\S+)", user, re.MULTILINE)
     m = re.search(r"text: (.+)$", user, re.MULTILINE)
     text = m.group(1).strip() if m else ""
@@ -220,9 +288,9 @@ def _fake_complete(user: str) -> str:
     quote = text[: min(40, len(text))].strip()
     item = {"quote": quote, "rationale": "Fake-Coder zur Demonstration.", "confidence": 0.5}
     if ids:
-        item["code_id"] = ids[0]          # deductive/hybrid: reuse a codebook id
+        item["code_id"] = ids[0]
     else:
-        item["name"] = "Fake-Thema"       # inductive: emergent code name
+        item["name"] = "Fake-Thema"
     return json.dumps({"codes": [item], "no_code": False})
 
 
