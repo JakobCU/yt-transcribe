@@ -1,52 +1,83 @@
 /* ============================================================
-   transkript::studio — functional studio theme (light default + dark)
-   IBM Plex Sans (UI + body) · IBM Plex Mono (timestamps, codes, meta)
+   transkript::studio — Foresight Atlas (AIT house style)
+   Lexend (UI + body) · IBM Plex Mono (timestamps, codes, meta)
+   Shared with the AI4TestingAI tools: warm paper + petrol/teal accent,
+   AIT red kept sparingly for brand.
    ============================================================ */
-@font-face{font-family:'Plex';src:url(vendor/fonts/plex-sans-400.woff2) format('woff2');font-weight:400;font-display:swap}
-@font-face{font-family:'Plex';src:url(vendor/fonts/plex-sans-500.woff2) format('woff2');font-weight:500;font-display:swap}
-@font-face{font-family:'Plex';src:url(vendor/fonts/plex-sans-600.woff2) format('woff2');font-weight:600;font-display:swap}
-@font-face{font-family:'Plex';src:url(vendor/fonts/plex-sans-700.woff2) format('woff2');font-weight:700;font-display:swap}
+@font-face{font-family:'Lexend';src:url(vendor/fonts/lexend-variable.woff2) format('woff2');font-weight:100 900;font-style:normal;font-display:swap}
 @font-face{font-family:'PlexMono';src:url(vendor/fonts/plex-mono-400.woff2) format('woff2');font-weight:400;font-display:swap}
 @font-face{font-family:'PlexMono';src:url(vendor/fonts/plex-mono-500.woff2) format('woff2');font-weight:500;font-display:swap}
 
 :root{
-  --sans:'Plex',system-ui,-apple-system,sans-serif;
+  --sans:'Lexend',ui-sans-serif,system-ui,-apple-system,sans-serif;
   --mono:'PlexMono',ui-monospace,'SFMono-Regular',Consolas,monospace;
-  /* light (default) */
-  --bg:#f4f3ef; --grad:#fbfaf7; --surface:#ffffff; --surface-2:#faf9f5; --surface-3:#f0eee8;
-  --ink:#1c1b17; --muted:#6c685f; --faint:#9a958a;
-  --line:#e5e2da; --line-2:#d6d2c7;
-  --accent:#b5751a; --accent-press:#9a6213; --accent-soft:#f6ebd6; --on-accent:#fffaf1;
-  --active:#fdf6e6; --active-line:#d9a23b;
-  --verify:#2f7d54; --verify-soft:#e8f3ec;
-  --review:#c2851a; --review-soft:#fbeed3;
-  --danger:#c0392b; --danger-soft:#f7e3e0;
-  --mk-check-bg:#f7e3e0; --mk-check-fg:#9a2c20;
-  --mk-multi-bg:#eae6f7; --mk-multi-fg:#5a4699;
-  --mk-rep-bg:#eeece6; --mk-rep-fg:#6c685f;
-  --shadow:0 12px 34px -22px rgba(60,45,20,.45);
+  --radius:12px;
+  /* light (default) — warm paper + deep ink */
+  --bg:#faf8f4; --grad:#ffffff; --surface:#ffffff; --surface-2:#f3efe8; --surface-3:#ece6db;
+  --ink:#211d19; --muted:#6b6256; --faint:#8b8175;
+  --line:#e8e1d5; --line-2:#d8cfc0;
+  --accent:#136b66; --accent-press:#0f5651; --accent-soft:#d0e8e5; --on-accent:#ffffff;
+  --brand:#e2001a;
+  --active:#edf6f5; --active-line:#3d9890;
+  --verify:#15803d; --verify-soft:#e6f2ea;
+  --review:#b45309; --review-soft:#f6ebd9;
+  --danger:#be123c; --danger-soft:#f8e1e6;
+  --mk-check-bg:#f8e1e6; --mk-check-fg:#9f1239;
+  --mk-multi-bg:#efe7fb; --mk-multi-fg:#6d28d9;
+  --mk-rep-bg:#efe9df; --mk-rep-fg:#6b6256;
+  --shadow:0 24px 60px -28px rgba(33,29,25,.5);
 }
 [data-theme="dark"]{
-  --bg:#15130e; --grad:#1d1a13; --surface:#1d1a14; --surface-2:#211d16; --surface-3:#2a261d;
-  --ink:#ece4d3; --muted:#a99e86; --faint:#766d5a;
-  --line:#322d22; --line-2:#48422f;
-  --accent:#e6b450; --accent-press:#f0c66f; --accent-soft:#2e2614; --on-accent:#231a07;
-  --active:#241f15; --active-line:#e6b450;
-  --verify:#5fc38c; --verify-soft:#1c2b21;
-  --review:#e6b450; --review-soft:#2e2614;
-  --danger:#e07a6e; --danger-soft:#2e1c19;
-  --mk-check-bg:#2e1c19; --mk-check-fg:#e8a193;
-  --mk-multi-bg:#211c2e; --mk-multi-fg:#b9a8e6;
-  --mk-rep-bg:#26221a; --mk-rep-fg:#a99e86;
-  --shadow:0 16px 40px -24px #000;
+  --bg:#1a1714; --grad:#211d19; --surface:#211d19; --surface-2:#29241f; --surface-3:#322d28;
+  --ink:#f3efe8; --muted:#b4a999; --faint:#8b8175;
+  --line:#322d28; --line-2:#4d463e;
+  --accent:#3d9890; --accent-press:#6fb8b1; --accent-soft:#0d433f; --on-accent:#04201d;
+  --brand:#ff4d5e;
+  --active:#13302c; --active-line:#3d9890;
+  --verify:#4ade80; --verify-soft:#15281d;
+  --review:#e6a23c; --review-soft:#2b2114;
+  --danger:#fb7185; --danger-soft:#2b1418;
+  --mk-check-bg:#2b1418; --mk-check-fg:#fda4af;
+  --mk-multi-bg:#1f1830; --mk-multi-fg:#c4b5fd;
+  --mk-rep-bg:#26221b; --mk-rep-fg:#b4a999;
+  --shadow:0 24px 60px -28px #000;
 }
 
 *{box-sizing:border-box}
 html,body{margin:0;height:100%}
 body{font:15px/1.55 var(--sans);color:var(--ink);
-  background:linear-gradient(180deg,var(--grad) 0%,var(--bg) 60%) fixed,var(--bg);}
+  background-color:var(--bg);
+  background-image:
+    radial-gradient(900px 520px at 50% -200px, color-mix(in srgb,var(--brand) 7%,transparent), transparent 62%),
+    repeating-radial-gradient(circle at 50% -140px, color-mix(in srgb,var(--ink) 4%,transparent) 0 1px, transparent 1px 88px);
+  background-attachment:fixed;
+  -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;}
 button{font:inherit;cursor:pointer;color:inherit}
-::selection{background:var(--accent-soft)}
+::selection{background:var(--accent);color:#fff}
+*::-webkit-scrollbar{width:11px;height:11px}
+*::-webkit-scrollbar-thumb{background:var(--line-2);border:3px solid var(--bg);border-radius:999px}
+*::-webkit-scrollbar-thumb:hover{background:var(--faint)}
+
+/* ---------- app dialogs (styled confirm/prompt/alert) ---------- */
+.uidlg-ov{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;
+  background:color-mix(in srgb,var(--ink) 45%,transparent);backdrop-filter:blur(3px);animation:uidlg-fade .14s ease}
+.uidlg{width:min(440px,100%);background:var(--surface);color:var(--ink);border:1px solid var(--line);
+  border-radius:var(--radius);box-shadow:var(--shadow);padding:20px 20px 16px;
+  animation:uidlg-pop .16s cubic-bezier(.22,1,.36,1)}
+.uidlg-title{font-size:16px;font-weight:600;letter-spacing:-.01em}
+.uidlg-msg{font-size:14px;color:var(--muted);line-height:1.5;white-space:pre-line;margin-top:6px}
+.uidlg-input{width:100%;margin-top:14px;padding:9px 11px;font:inherit;color:var(--ink);
+  background:var(--surface-2);border:1px solid var(--line-2);border-radius:8px;outline:none}
+.uidlg-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.uidlg-choices{display:flex;flex-direction:column;gap:8px;margin-top:14px}
+.uidlg-choice{text-align:left;padding:10px 12px;border:1px solid var(--line);border-radius:8px;
+  background:var(--surface-2);color:var(--ink);font:inherit}
+.uidlg-choice:hover{border-color:var(--accent);background:var(--accent-soft)}
+.uidlg-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}
+.btn.danger{background:var(--danger);color:#fff;border-color:transparent}
+.btn.danger:hover{filter:brightness(1.05)}
+@keyframes uidlg-fade{from{opacity:0}to{opacity:1}}
+@keyframes uidlg-pop{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:none}}
 
 /* ---------- top bar ---------- */
 .topbar{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--surface) 88%,transparent);

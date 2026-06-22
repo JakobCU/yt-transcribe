@@ -310,14 +310,14 @@ $('transcript').addEventListener('click',e=>{
   const ts=e.target.closest('.ts');if(ts){media.currentTime=+ts.dataset.sec;if(media.src)media.play();return;}
   const tb=e.target.closest('.rowtools button');if(tb){const i=+tb.closest('.seg').dataset.i;rowAction(tb.dataset.act,i);return;}
 });
-$('transcript').addEventListener('change',e=>{const sel=e.target.closest('select.spk');if(!sel)return;
+$('transcript').addEventListener('change',async e=>{const sel=e.target.closest('select.spk');if(!sel)return;
   const i=+sel.closest('.seg').dataset.i;let v=sel.value;
-  if(v==='__new'){const lbl=prompt('Name des neuen Sprechers:','');if(!lbl||!lbl.trim()){render();return;}v=ensureSpeaker(lbl.trim()).id;}
+  if(v==='__new'){const lbl=await uiPrompt('Name des neuen Sprechers:','',{title:'Neuer Sprecher'});if(!lbl||!lbl.trim()){render();return;}v=ensureSpeaker(lbl.trim()).id;}
   segments[i].speakerId=v;segments[i].speaker=speakerLabel(segments[i]);render();save();});
 
-function rowAction(act,i){const s=segments[i];
+async function rowAction(act,i){const s=segments[i];
   if(act==='verify'){s.verified=!s.verified;refreshRowClasses(i);updateProgress();save();return;}
-  if(act==='del'){if(confirm('Diese Zeile löschen?')){segments.splice(i,1);render();save();}return;}
+  if(act==='del'){if(await uiConfirm('Diese Zeile wirklich löschen?',{title:'Zeile löschen',confirmText:'Löschen',danger:true})){segments.splice(i,1);render();save();}return;}
   if(act==='mergeup'){let p=i-1;while(p>=0&&segments[p].type!=='turn')p--;if(p<0)return;
     segments[p].text=(segments[p].text+' '+s.text).trim();segments[p].edited=true;rehintAnchorsForSegment(segments[p].id);segments.splice(i,1);render();save();return;}
   if(act==='split'){let off=(lastCaret.i===i)?clamp(lastCaret.off,0,s.text.length):s.text.length;
@@ -326,13 +326,13 @@ function rowAction(act,i){const s=segments[i];
 }
 
 /* legend rename (operates on the speaker entity → updates everywhere) */
-$('info').addEventListener('click',e=>{const lg=e.target.closest('.lg');if(!lg)return;
+$('info').addEventListener('click',async e=>{const lg=e.target.closest('.lg');if(!lg)return;
   const ent=speakerById(lg.dataset.spk);if(!ent)return;
-  const nn=prompt(`„${ent.label}" umbenennen in (gilt für alle Zeilen):`,ent.label);
+  const nn=await uiPrompt('Gilt für alle Zeilen dieses Sprechers.',ent.label,{title:`„${ent.label}" umbenennen`});
   if(!nn||!nn.trim()||nn.trim()===ent.label)return;
   const n=nn.trim(); const old=ent.label;
   const clash=speakerByLabel(n);
-  if(clash&&clash!==ent){if(!confirm(`„${n}" existiert schon. Beide Sprecher zusammenführen?`))return;
+  if(clash&&clash!==ent){if(!await uiConfirm(`„${n}" existiert schon. Beide Sprecher zusammenführen?`,{title:'Zusammenführen',confirmText:'Zusammenführen'}))return;
     segments.forEach(s=>{if(s.type==='turn'&&s.speakerId===ent.id)s.speakerId=clash.id;});
     speakerList=speakerList.filter(s=>s!==ent);
   }else{ent.label=n;if(!ent.aliases.includes(old)&&/^SPEAKER_|^UNKNOWN$/.test(old))ent.aliases.push(old);}
@@ -356,7 +356,45 @@ function moveEdit(dir){const i=curRowIndex();if(i<0)return;
   for(const j of rng){if(segments[j].type==='turn'){focusText(j,true);rowEl(j)?.scrollIntoView({block:'center'});return;}}}
 function editingField(){const a=document.activeElement;return a&&(a.isContentEditable||['INPUT','TEXTAREA','SELECT'].includes(a.tagName));}
 
+/* ---------- app dialogs (styled in-app modals, replacing native confirm/prompt/alert) ---------- */
+let _uidlgOpen=false;
+function uiDialog(opts){
+  return new Promise(resolve=>{
+    const ov=document.createElement('div');ov.className='uidlg-ov';
+    const card=document.createElement('div');card.className='uidlg';card.setAttribute('role','dialog');card.setAttribute('aria-modal','true');
+    let h='';
+    if(opts.title)h+=`<div class="uidlg-title">${esc(opts.title)}</div>`;
+    if(opts.message)h+=`<div class="uidlg-msg">${esc(opts.message)}</div>`;
+    if(opts.input)h+=`<input class="uidlg-input" type="text" value="${esc(opts.value||'')}" placeholder="${esc(opts.placeholder||'')}">`;
+    if(opts.choices)h+='<div class="uidlg-choices">'+opts.choices.map((c,i)=>`<button class="uidlg-choice" data-i="${i}">${esc(c)}</button>`).join('')+'</div>';
+    h+='<div class="uidlg-actions">';
+    if(!opts.okOnly)h+=`<button class="btn uidlg-cancel">${esc(opts.cancelText||'Abbrechen')}</button>`;
+    if(!opts.choices)h+=`<button class="btn primary uidlg-ok${opts.danger?' danger':''}">${esc(opts.confirmText||'OK')}</button>`;
+    h+='</div>';
+    card.innerHTML=h;ov.appendChild(card);document.body.appendChild(ov);_uidlgOpen=true;
+    const inp=card.querySelector('.uidlg-input');
+    const done=v=>{_uidlgOpen=false;document.removeEventListener('keydown',onKey,true);ov.remove();resolve(v);};
+    const cancel=()=>done(opts.input?null:(opts.choices?null:false));
+    const ok=()=>done(opts.input?inp.value:true);
+    card.querySelector('.uidlg-ok')?.addEventListener('click',ok);
+    card.querySelector('.uidlg-cancel')?.addEventListener('click',cancel);
+    card.querySelectorAll('.uidlg-choice').forEach(b=>b.addEventListener('click',()=>done(+b.dataset.i)));
+    ov.addEventListener('mousedown',e=>{if(e.target===ov)cancel();});
+    function onKey(e){
+      if(e.key==='Escape'){e.preventDefault();e.stopPropagation();cancel();}
+      else if(e.key==='Enter'&&!opts.choices){e.preventDefault();e.stopPropagation();ok();}
+    }
+    document.addEventListener('keydown',onKey,true);
+    setTimeout(()=>{(inp||card.querySelector('.uidlg-ok')||card.querySelector('.uidlg-cancel'))?.focus();if(inp)inp.select();},30);
+  });
+}
+function uiConfirm(message,o={}){return uiDialog({title:o.title||'Bestätigen',message,confirmText:o.confirmText||'OK',cancelText:o.cancelText,danger:o.danger});}
+function uiPrompt(message,value='',o={}){return uiDialog({title:o.title||'Eingabe',message,input:true,value,placeholder:o.placeholder,confirmText:o.confirmText||'OK'});}
+function uiAlert(message,o={}){return uiDialog({title:o.title||'Hinweis',message,okOnly:true,confirmText:'OK'}).then(()=>{});}
+function uiChoose(title,labels){return uiDialog({title,choices:labels});}
+
 document.addEventListener('keydown',e=>{
+  if(_uidlgOpen)return;  // a styled dialog is open — it handles its own keys
   // Spacebar = global play/pause, unless typing in a field (segment edit, search, inputs).
   // preventDefault so a focused button/checkbox isn't toggled and the page doesn't scroll.
   if((e.key===' '||e.key==='Spacebar')&&!editingField()){e.preventDefault();togglePlay();return;}
@@ -436,7 +474,7 @@ function save(){clearTimeout(saveTimer);saveTimer=setTimeout(()=>{
   if(serverDoc){serverSaveFlush();return;}  // team mode → server
   try{docMeta.rev=(docMeta.rev||0)+1;localStorage.setItem(transcriptId,JSON.stringify(currentDoc()));}catch(_){}
 },400);}
-$('resetState').onclick=()=>{if(!confirm('Bearbeitungsstand verwerfen und Original neu laden?'))return;
+$('resetState').onclick=async()=>{if(!await uiConfirm('Bearbeitungsstand verwerfen und Original neu laden?',{title:'Verwerfen',confirmText:'Verwerfen',danger:true}))return;
   localStorage.removeItem(transcriptId);loadEmbeddedOrReload();$('restoreBanner').classList.remove('show');};
 function loadEmbeddedOrReload(){if(_lastRaw){installDoc(docFromParse(_lastRaw,transcriptName));save();}}
 
@@ -447,13 +485,13 @@ function buildTxt(){let out=headerText?headerText+'\n\n':'';
 function download(name,text){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type:'text/plain'}));a.download=name;a.click();}
 function exportTxt(){download((transcriptName||'transkript').replace(/\.txt$/i,'')+'_geprueft.txt',buildTxt());toast('Export .txt');}
 $('exportTxt').onclick=exportTxt;
-$('moreExport').onclick=()=>{const c=['Reine Lesefassung (ohne Timestamps) .txt','SRT-Untertitel .srt','JSON-Snapshot (v2, Backup)','Snapshot laden…'];
-  const ch=prompt('Export/Backup:\n1) '+c[0]+'\n2) '+c[1]+'\n3) '+c[2]+'\n4) '+c[3]+'\n\nNummer eingeben:');
-  if(ch==='1'){let o='';segments.forEach(s=>{if(s.type==='turn')o+=speakerLabel(s)+': '+s.text+'\n\n';});download('lesefassung.txt',o.trim()+'\n');}
-  else if(ch==='2'){let o='',n=1;const turns=segments.filter(s=>s.type==='turn');
+$('moreExport').onclick=async()=>{const c=['Reine Lesefassung (ohne Timestamps) .txt','SRT-Untertitel .srt','JSON-Snapshot (v2, Backup)','Snapshot laden…'];
+  const ch=await uiChoose('Export / Backup',c);
+  if(ch===0){let o='';segments.forEach(s=>{if(s.type==='turn')o+=speakerLabel(s)+': '+s.text+'\n\n';});download('lesefassung.txt',o.trim()+'\n');}
+  else if(ch===1){let o='',n=1;const turns=segments.filter(s=>s.type==='turn');
     turns.forEach((s,k)=>{const end=k+1<turns.length?turns[k+1].seconds:s.seconds+5;o+=n++ +'\n'+srt(s.seconds)+' --> '+srt(end)+'\n'+speakerLabel(s)+': '+s.text+'\n\n';});download('untertitel.srt',o);}
-  else if(ch==='3'){download((transcriptName||'transkript')+'.snapshot.json',JSON.stringify(currentDoc(),null,1));}
-  else if(ch==='4'){pick('.json,application/json',f=>f.text().then(t=>{try{const d=JSON.parse(t);const doc=normalizeDoc(d,transcriptName,headerText);transcriptName=doc.name||transcriptName;installDoc(doc);save();toast('Snapshot geladen');}catch(_){toast('Ungültige Datei');}}));}
+  else if(ch===2){download((transcriptName||'transkript')+'.snapshot.json',JSON.stringify(currentDoc(),null,1));}
+  else if(ch===3){pick('.json,application/json',f=>f.text().then(t=>{try{const d=JSON.parse(t);const doc=normalizeDoc(d,transcriptName,headerText);transcriptName=doc.name||transcriptName;installDoc(doc);save();toast('Snapshot geladen');}catch(_){toast('Ungültige Datei');}}));}
 };
 function srt(sec){const h=Math.floor(sec/3600),m=Math.floor(sec%3600/60),s=Math.floor(sec%60);return pad(h)+':'+pad(m)+':'+pad(s)+',000';}
 
@@ -565,7 +603,7 @@ function addHighlight(color){if(!pendingSel)return;const a=makeAnchor(pendingSel
 function eraseHighlights(){if(!pendingSel)return;const{segId,start,end}=pendingSel;let n=0;
   highlights=highlights.filter(h=>{if(h.anchor.segmentId!==segId)return true;const r=resolveAnchor(h.anchor);if(r.ok&&r.start<end&&r.end>start){n++;return false;}return true;});
   rerenderSegment(segId);getSelection().removeAllRanges();hideSelbar();save();toast(n?`${n} Markierung(en) entfernt`:'Keine Markierung in der Auswahl');}
-function addComment(){if(!pendingSel)return;const body=prompt('Kommentar / Notiz:','');if(body==null){hideSelbar();return;}
+async function addComment(){if(!pendingSel)return;const body=await uiPrompt('Kommentar / Notiz:','',{title:'Kommentar'});if(body==null){hideSelbar();return;}
   const a=makeAnchor(pendingSel.segId,pendingSel.start,pendingSel.end);
   comments.push({id:uid('cm'),anchor:a,body:body.trim(),createdBy:'local',createdAt:nowISO(),resolved:false});
   rerenderSegment(pendingSel.segId);getSelection().removeAllRanges();hideSelbar();updateCommentCount();save();
@@ -590,12 +628,12 @@ function renderComments(){const list=$('clist');
         <button data-cact="edit">bearbeiten</button><button data-cact="del">löschen</button></div>
     </div>`;}).join('');
 }
-$('clist').addEventListener('click',e=>{const card=e.target.closest('.ccard');if(!card)return;const id=card.dataset.cid;const c=comments.find(x=>x.id===id);if(!c)return;
+$('clist').addEventListener('click',async e=>{const card=e.target.closest('.ccard');if(!card)return;const id=card.dataset.cid;const c=comments.find(x=>x.id===id);if(!c)return;
   if(e.target.closest('[data-go]')){flashSegment(c.anchor.segmentId);return;}
   const act=e.target.closest('[data-cact]');if(!act)return;
   if(act.dataset.cact==='resolve'){c.resolved=!c.resolved;}
-  else if(act.dataset.cact==='edit'){const b=prompt('Kommentar bearbeiten:',c.body);if(b!=null)c.body=b.trim();}
-  else if(act.dataset.cact==='del'){if(!confirm('Kommentar löschen?'))return;comments=comments.filter(x=>x.id!==id);rerenderSegment(c.anchor.segmentId);}
+  else if(act.dataset.cact==='edit'){const b=await uiPrompt('Kommentar bearbeiten:',c.body,{title:'Kommentar bearbeiten'});if(b!=null)c.body=b.trim();}
+  else if(act.dataset.cact==='del'){if(!await uiConfirm('Kommentar löschen?',{title:'Kommentar löschen',confirmText:'Löschen',danger:true}))return;comments=comments.filter(x=>x.id!==id);rerenderSegment(c.anchor.segmentId);}
   renderComments();updateCommentCount();save();});
 $('commentsBtn').onclick=()=>{const p=$('cpanel');const show=!p.classList.contains('show');$('codepanel').classList.remove('show');p.classList.toggle('show',show);if(show)renderComments();};
 $('cpanelClose').onclick=()=>$('cpanel').classList.remove('show');
@@ -662,9 +700,9 @@ function codePickKey(e){
   else if(e.key==='Enter'){e.preventDefault();(rows.find(r=>r.classList.contains('sel'))||rows[0])?.click();}
   else if(e.key==='Escape'){e.preventDefault();hideCodePick();}
 }
-codepick.addEventListener('click',e=>{
+codepick.addEventListener('click',async e=>{
   const row=e.target.closest('.pkrow');if(!row)return;
-  if(row.dataset.new){const q=codepick.querySelector('input').value.trim();const nm=q||prompt('Name des neuen Codes:','');if(!nm||!nm.trim())return;const c=createCode({name:nm.trim()});applyCodeToSelection(c.id);return;}
+  if(row.dataset.new){const q=codepick.querySelector('input').value.trim();const nm=q||await uiPrompt('Name des neuen Codes:','',{title:'Neuer Code'});if(!nm||!nm.trim())return;const c=createCode({name:nm.trim()});applyCodeToSelection(c.id);return;}
   applyCodeToSelection(row.dataset.cid);
 });
 
@@ -696,11 +734,11 @@ function renderCodes(){
   if(prov.length)html+=`<div class="cprovhdr">Vorschläge / emergent (${prov.length})</div>`+prov.map(renderCodeNode).join('');
   tree.innerHTML=html;updateCodeCount();
 }
-function editCode(c){
-  const name=prompt('Code-Name:',c.name);if(name==null)return;if(name.trim())c.name=name.trim();
-  const def=prompt('Definition (wann anwenden?):',c.definition||'');if(def!=null)c.definition=def.trim();
-  const col=prompt('Farbe (Hex, z.B. #9333ea):',c.color);if(col&&/^#?[0-9a-fA-F]{6}$/.test(col.trim())){c.color=col.trim().startsWith('#')?col.trim():'#'+col.trim();}
-  if(c.provisional&&confirm('Diesen Vorschlag fest ins Codebook übernehmen?'))c.provisional=false;
+async function editCode(c){
+  const name=await uiPrompt('Code-Name:',c.name,{title:'Code bearbeiten'});if(name==null)return;if(name.trim())c.name=name.trim();
+  const def=await uiPrompt('Definition (wann anwenden?):',c.definition||'',{title:'Definition'});if(def!=null)c.definition=def.trim();
+  const col=await uiPrompt('Farbe (Hex, z.B. #9333ea):',c.color,{title:'Farbe'});if(col&&/^#?[0-9a-fA-F]{6}$/.test(col.trim())){c.color=col.trim().startsWith('#')?col.trim():'#'+col.trim();}
+  if(c.provisional&&await uiConfirm('Diesen Vorschlag fest ins Codebook übernehmen?',{title:'Übernehmen',confirmText:'Übernehmen'}))c.provisional=false;
   renderCodes();render();save();if(retrievedCodeId===c.id)retrieveCode(c.id);
 }
 function retrieveCode(id){
@@ -718,12 +756,12 @@ function retrieveCode(id){
   }).join('')||'<div style="color:var(--muted);font-size:12px">Noch keine Kodierungen.</div>';
   box.innerHTML=html;box.classList.add('show');
 }
-$('ctree').addEventListener('click',e=>{
+$('ctree').addEventListener('click',async e=>{
   const node=e.target.closest('.cnode');if(!node)return;const id=node.dataset.code;const c=codeById(id);if(!c)return;
   const act=e.target.closest('[data-cact]');
   if(act){const a=act.dataset.cact;
-    if(a==='del'){if(confirm(`Code „${c.name}" samt Unter-Codes und allen Kodierungen löschen?`)){deleteCode(id);if(retrievedCodeId===id){retrievedCodeId=null;$('cretrieve').classList.remove('show');}renderCodes();render();save();}return;}
-    if(a==='addsub'){const nm=prompt('Name des Unter-Codes:','');if(nm&&nm.trim()){createCode({name:nm.trim(),parentId:id});renderCodes();save();}return;}
+    if(a==='del'){if(await uiConfirm(`Code „${c.name}" samt Unter-Codes und allen Kodierungen löschen?`,{title:'Code löschen',confirmText:'Löschen',danger:true})){deleteCode(id);if(retrievedCodeId===id){retrievedCodeId=null;$('cretrieve').classList.remove('show');}renderCodes();render();save();}return;}
+    if(a==='addsub'){const nm=await uiPrompt('Name des Unter-Codes:','',{title:'Unter-Code'});if(nm&&nm.trim()){createCode({name:nm.trim(),parentId:id});renderCodes();save();}return;}
     if(a==='edit'){editCode(c);return;}
     if(a==='retrieve'){retrieveCode(id);return;}}
   retrieveCode(id);
@@ -743,7 +781,7 @@ $('cretrieve').addEventListener('click',e=>{
 $('codesBtn').onclick=()=>{const p=$('codepanel');const show=!p.classList.contains('show');$('cpanel').classList.remove('show');p.classList.toggle('show',show);if(show)renderCodes();};
 $('codepanelClose').onclick=()=>$('codepanel').classList.remove('show');
 $('codeMode').onchange=()=>{codingCfg.mode=$('codeMode').value;save();toast('Modus: '+$('codeMode').selectedOptions[0].text);};
-$('newCodeBtn').onclick=()=>{const nm=prompt('Name des neuen Codes:','');if(!nm||!nm.trim())return;createCode({name:nm.trim()});renderCodes();save();};
+$('newCodeBtn').onclick=async()=>{const nm=await uiPrompt('Name des neuen Codes:','',{title:'Neuer Code'});if(!nm||!nm.trim())return;createCode({name:nm.trim()});renderCodes();save();};
 
 /* codebook YAML import / export — the editable "how to code" instruction file */
 function codebookToYaml(){
@@ -903,7 +941,7 @@ async function startLLMCoding(){
   if(mode==='deductive'&&!codable.length){toast('Deduktiv braucht Codes — anlegen, Codebook laden, oder Modus auf induktiv stellen');return;}
   const provider=$('llmProvider').value;
   const how=mode==='inductive'?'induktiv (Codes entstehen am Material)':mode==='hybrid'?`hybrid (${codable.length} Codes + neue)`:`deduktiv (${codable.length} Codes)`;
-  if(!confirm(`Transkript (${turns.length} Segmente) ${how} mit „${provider}" kodieren?\nDie Vorschläge prüfst du danach — nichts wird automatisch übernommen.`))return;
+  if(!await uiConfirm(`Transkript (${turns.length} Segmente) ${how} mit „${provider}" kodieren?\nDie Vorschläge prüfst du danach — nichts wird automatisch übernommen.`,{title:'KI-Kodierung starten',confirmText:'Kodieren'}))return;
   const body={provider,mode,context:1,name:'KI-Kodierung',
     codes:codable.map(c=>({id:c.id,name:c.name,definition:c.definition,inclusion:c.inclusion,exclusion:c.exclusion,examples:c.examples,isCodable:true})),
     segments:turns.map(s=>({id:s.id,speaker:speakerLabel(s),text:s.text}))};
@@ -1050,11 +1088,12 @@ async function loadDocs(){const pid=activeProjectId;let docs=[];
     :'<div class="lempty">Noch keine Dokumente. Transkribiere oder importiere eines.</div>';
   el.querySelectorAll('[data-doc]').forEach(x=>x.onclick=()=>openServerDocument(x.dataset.doc));
 }
-function createProjectFlow(){const name=prompt('Name des neuen Projekts:','');if(!name||!name.trim())return;
+async function createProjectFlow(){const name=await uiPrompt('Name des neuen Projekts:','',{title:'Neues Projekt'});if(!name||!name.trim())return;
   fetch('/api/projects',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name.trim()})})
     .then(r=>r.json()).then(p=>{activeProjectId=p.id;loadProjects();});}
-function addMemberFlow(){const email=prompt('E-Mail des Mitglieds (muss bereits registriert sein):','');if(!email||!email.trim())return;
-  const role=confirm('Als Admin hinzufügen?  (Abbrechen = Coder)')?'admin':'coder';
+async function addMemberFlow(){const email=await uiPrompt('E-Mail des Mitglieds (muss bereits registriert sein):','',{title:'Mitglied hinzufügen'});if(!email||!email.trim())return;
+  const roleIdx=await uiChoose('Rolle für '+email.trim(),['Coder (kodiert mit)','Admin (verwaltet das Projekt)']);if(roleIdx==null)return;
+  const role=roleIdx===1?'admin':'coder';
   fetch('/api/projects/'+activeProjectId+'/members',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:email.trim(),role})})
     .then(r=>r.json().then(d=>toast(r.ok?'Mitglied hinzugefügt':(d.detail||'Fehler'))));}
 function importTxtFlow(){pick('.txt,text/plain',f=>f.text().then(t=>{
