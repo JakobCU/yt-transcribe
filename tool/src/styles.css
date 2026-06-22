@@ -88,10 +88,20 @@ button{font:inherit;cursor:pointer;color:inherit}
 .aitbar .ait-wm .dot{color:#5ec5be}
 .aitbar .ait-right{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:12px;color:rgba(255,255,255,.7)}
 .aitbar .ait-pill{border:1px solid rgba(255,255,255,.2);border-radius:999px;padding:2px 10px}
-.topbar{position:sticky;top:46px;z-index:20;background:color-mix(in srgb,var(--surface) 88%,transparent);
-  backdrop-filter:blur(8px);border-bottom:1px solid var(--line);padding:9px 16px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.aitbar .btn{background:transparent;border-color:rgba(255,255,255,.22);color:#fff}
+.aitbar .btn:hover{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.4)}
+.aitbar .userchip{color:rgba(255,255,255,.85)}
+.aitbar .userchip b{color:#fff}
+/* sticky work area: source/search/actions toolbar + transport strip stick together under the AIT bar */
+.workbars{position:sticky;top:46px;z-index:20;background:color-mix(in srgb,var(--surface) 90%,transparent);
+  backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.topbar{padding:9px 16px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
 .topbar .grp{display:flex;gap:6px;align-items:center}
-.topbar .sep{width:1px;height:22px;background:var(--line);margin:0 3px}
+.topbar .sep,.transport .sep{width:1px;height:22px;background:var(--line);margin:0 4px}
+.tb-search{flex:1 1 220px;min-width:150px}
+.tb-search #search{width:100%}
+.transport{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:7px 16px;border-top:1px solid var(--line)}
+.transport .lbl{font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--faint);margin-right:2px}
 .brand{font:600 16px/1 var(--mono);letter-spacing:.01em;margin-right:6px;white-space:nowrap}
 .brand .dot{color:var(--accent)}
 .btn{display:inline-flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:6px 11px;color:var(--ink);

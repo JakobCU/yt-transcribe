@@ -41,48 +41,48 @@
   <img class="ait-logo" src="vendor/ait_logo.png" alt="AIT — Austrian Institute of Technology">
   <span class="ait-div"></span>
   <span class="ait-wm">transkript<span class="dot">::</span>studio</span>
-  <span class="ait-right"><span class="ait-pill">Prototyp</span></span>
+  <div class="ait-right">
+    <button class="btn" id="libBtn" style="display:none" title="Bibliothek — Projekte & Dokumente"><svg class="ic"><use href="#i-library"/></svg> Bibliothek</button>
+    <span class="userchip" id="userChip" title="Bibliothek öffnen"><b id="userName"></b></span>
+    <button class="btn icon" id="themeBtn" title="Hell / Dunkel umschalten"><svg class="ic"><use href="#i-sun-moon"/></svg></button>
+    <button class="btn icon" id="helpBtn" title="Hilfe (?)"><svg class="ic"><use href="#i-circle-help"/></svg></button>
+  </div>
 </header>
 
-<div class="topbar">
-  <div class="grp">
-    <button class="btn" id="libBtn" style="display:none" title="Bibliothek — Projekte & Dokumente"><svg class="ic"><use href="#i-library"/></svg> Bibliothek</button>
-    <button class="btn" id="loadTxt"><svg class="ic"><use href="#i-file-text"/></svg> Transkript laden</button>
-    <button class="btn" id="loadAud"><svg class="ic"><use href="#i-file-audio"/></svg> Audio/Video laden</button>
-    <button class="btn primary" id="transcribeBtn" style="display:none" title="Aufnahme automatisch transkribieren"><svg class="ic"><use href="#i-mic"/></svg> Transkribieren</button>
+<div class="workbars">
+  <div class="topbar">
+    <div class="grp">
+      <button class="btn" id="loadTxt"><svg class="ic"><use href="#i-file-text"/></svg> Transkript laden</button>
+      <button class="btn" id="loadAud"><svg class="ic"><use href="#i-file-audio"/></svg> Audio/Video laden</button>
+      <button class="btn primary" id="transcribeBtn" style="display:none" title="Aufnahme automatisch transkribieren"><svg class="ic"><use href="#i-mic"/></svg> Transkribieren</button>
+    </div>
+    <div class="grp tb-search">
+      <input type="search" id="search" placeholder="Im Transkript suchen…">
+      <select class="flt" id="filter">
+        <option value="all">Alle Zeilen</option>
+        <option value="unverified">Nur ungeprüfte</option>
+        <option value="marker">Nur mit Marker</option>
+      </select>
+    </div>
+    <div class="grp">
+      <span class="pill" id="progress"><b>0</b>/0 geprüft · <b>0</b> Marker</span>
+      <button class="btn" id="codesBtn" title="Codes / thematisches Kodieren"><svg class="ic"><use href="#i-tag"/></svg> Codes <span id="codeCount">0</span></button>
+      <button class="btn" id="commentsBtn" title="Kommentare anzeigen"><svg class="ic"><use href="#i-message-square"/></svg> Kommentare <span id="cCount">0</span></button>
+      <div class="sep"></div>
+      <button class="btn primary" id="exportTxt" title="Export .txt (Strg+S)"><svg class="ic"><use href="#i-download"/></svg> Export .txt</button>
+      <button class="btn icon" id="moreExport" title="Weitere Exporte / Backup"><svg class="ic"><use href="#i-ellipsis"/></svg></button>
+    </div>
   </div>
-  <div class="sep"></div>
-  <div class="grp">
+  <div class="transport">
     <button class="btn icon" id="playBtn" title="Play/Pause (Leertaste)"><svg class="ic"><use href="#i-play"/></svg></button>
     <span class="pill" id="timePill">–:– / –:–</span>
     <div class="rateWrap"><span>Tempo</span><input type="range" id="rateSlider" min="0.5" max="2" step="0.1" value="1" title="Wiedergabetempo (Strg+↑/↓)"><b id="rateVal">1.0×</b></div>
-  </div>
-  <div class="sep"></div>
-  <div class="grp">
+    <div class="sep"></div>
+    <span class="lbl">Beim Abspielen</span>
     <button class="btn on" id="followBtn" title="Mit Audio mitscrollen">Follow</button>
     <button class="btn on" id="rewindBtn" title="Beim Pausieren kurz zurückspulen">Auto-Rewind</button>
     <button class="btn" id="loopBtn" title="Aktuelles Segment wiederholen">Loop</button>
     <button class="btn on" id="editSeekBtn" title="Beim Editieren Audio zur Zeile springen">Edit→Seek</button>
-  </div>
-  <div class="sep"></div>
-  <div class="grp">
-    <input type="search" id="search" placeholder="Suchen…">
-    <select class="flt" id="filter">
-      <option value="all">Alle Zeilen</option>
-      <option value="unverified">Nur ungeprüfte</option>
-      <option value="marker">Nur mit Marker</option>
-    </select>
-  </div>
-  <div class="sep"></div>
-  <div class="grp">
-    <span class="pill" id="progress"><b>0</b>/0 geprüft · <b>0</b> Marker</span>
-    <button class="btn primary" id="exportTxt" title="Export .txt (Strg+S)"><svg class="ic"><use href="#i-download"/></svg> Export .txt</button>
-    <button class="btn icon" id="moreExport" title="Weitere Exporte / Backup"><svg class="ic"><use href="#i-ellipsis"/></svg></button>
-    <button class="btn" id="codesBtn" title="Codes / thematisches Kodieren"><svg class="ic"><use href="#i-tag"/></svg> Codes <span id="codeCount">0</span></button>
-    <button class="btn" id="commentsBtn" title="Kommentare anzeigen"><svg class="ic"><use href="#i-message-square"/></svg> Kommentare <span id="cCount">0</span></button>
-    <button class="btn icon" id="themeBtn" title="Hell / Dunkel umschalten"><svg class="ic"><use href="#i-sun-moon"/></svg></button>
-    <span class="userchip" id="userChip" title="Bibliothek öffnen"><b id="userName"></b></span>
-    <button class="btn icon" id="helpBtn" title="Hilfe (?)"><svg class="ic"><use href="#i-circle-help"/></svg></button>
   </div>
 </div>
 
