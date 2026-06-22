@@ -127,7 +127,7 @@ def _run_deductive(payload, progress, codes, segments, provider, model) -> dict:
 
 def _run_running_codebook(payload, progress, seed_codes, segments, mode, provider, model) -> dict:
     seed_by_name = {(c.get("name") or "").strip().lower(): c for c in seed_codes if c.get("name")}
-    seg_by_id = {s.get("id"): s for s in segments}
+    seg_by_id = {str(s.get("id")): s for s in segments}   # ids may be ints; the model echoes them as JSON strings
     running: dict[str, dict] = {}          # lower name -> {"name", "count"}
     suggestions: list[dict] = []
     stats = {"segments": len(segments), "suggested": 0, "invalid_quotes": 0,
@@ -144,11 +144,13 @@ def _run_running_codebook(payload, progress, seed_codes, segments, mode, provide
             progress("code", (bi + 1) / len(batches) * 0.9)
             continue
         for sr in (parsed.get("segments") or parsed.get("assignments") or []):
-            sid = sr.get("id") or sr.get("segment_id")
-            focal = seg_by_id.get(sid)
+            raw_id = sr.get("id")
+            raw_id = sr.get("segment_id") if raw_id is None else raw_id
+            focal = seg_by_id.get(str(raw_id))
             if not focal:
                 continue
             text = focal.get("text", "") or ""
+            fid = focal.get("id")                         # original id (int or str) for the client
             for c in (sr.get("codes") or []):
                 name = (c.get("code") or c.get("name") or "").strip()
                 quote = c.get("quote") or ""
@@ -160,7 +162,7 @@ def _run_running_codebook(payload, progress, seed_codes, segments, mode, provide
                     stats["unknown_codes"] += 1
                     continue
                 sug = {
-                    "segment_id": sid, "quote": quote,
+                    "segment_id": fid, "quote": quote,
                     "char_start": pos, "char_end": pos + len(quote),
                     "rationale": (c.get("rationale") or "").strip(),
                     "confidence": c.get("confidence"),
