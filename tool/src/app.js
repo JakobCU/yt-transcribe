@@ -691,6 +691,8 @@ let retrievedCodeId=null;
 function nextCodeColor(){return CODE_PALETTE[codeColorIdx++%CODE_PALETTE.length];}
 function appsForCode(id){return codeApplications.filter(a=>a.codeId===id&&a.status!=='rejected');}
 function codeChildren(parentId){return codeSystem.filter(c=>(c.parentId||null)===(parentId||null));}
+function descendantIds(id){const out=[id];codeChildren(id).forEach(c=>out.push(...descendantIds(c.id)));return out;}
+function appsForCodeDeep(id){const ids=new Set(descendantIds(id));return codeApplications.filter(a=>ids.has(a.codeId)&&a.status!=='rejected');}
 function createCode({name,color,parentId,definition,id}={}){
   const code={id:id||uid('code'),name:(name||'Neuer Code').trim(),parentId:parentId||null,color:color||nextCodeColor(),
     definition:definition||'',inclusion:'',exclusion:'',examples:[],isCodable:true,
@@ -751,14 +753,16 @@ codepick.addEventListener('click',async e=>{
 /* codes side panel */
 function updateCodeCount(){const el=$('codeCount');if(el)el.textContent=codeSystem.filter(c=>c.isCodable!==false).length;}
 function renderCodeNode(c){
-  const kids=codeChildren(c.id).filter(k=>!k.provisional);
+  const kids=codeChildren(c.id);
+  const n=appsForCodeDeep(c.id).length;
   let html=`<div class="cnode${retrievedCodeId===c.id?' active':''}" data-code="${c.id}" title="${esc(c.definition||'(keine Definition)')}">`+
     `<span class="cdot" style="background:${c.color}"></span>`+
     `<span class="cname">${esc(c.name)}${c.provisional?'<span class="prov"> Vorschlag</span>':''}</span>`+
-    `<span class="ccount">${appsForCode(c.id).length}</span>`+
+    `<span class="ccount">${n}</span>`+
     `<span class="ctools">`+
       `<button data-cact="retrieve" title="Alle Stellen anzeigen">${ic('corner-down-right')}</button>`+
       `<button data-cact="addsub" title="Unter-Code">${ic('plus')}</button>`+
+      `<button data-cact="move" title="Unter ein Thema einordnen">${ic('list-tree')}</button>`+
       `<button data-cact="edit" title="Bearbeiten">${ic('pencil')}</button>`+
       `<button data-cact="del" title="Löschen">${ic('trash-2')}</button>`+
     `</span></div>`;
@@ -770,11 +774,9 @@ function renderCodes(){
   refreshLLMUI();
   const tree=$('ctree');if(!tree)return;
   if(!codeSystem.length){tree.innerHTML=`<div class="cempty">Noch keine Codes.<br>Text markieren → ${ic('tag')} Code, „${ic('plus')} Code", oder ein Codebook laden.</div>`;updateCodeCount();return;}
-  const roots=codeChildren(null).filter(c=>!c.provisional);
-  const prov=codeSystem.filter(c=>c.provisional);
-  let html=roots.map(renderCodeNode).join('');
-  if(prov.length)html+=`<div class="cprovhdr">Vorschläge / emergent (${prov.length})</div>`+prov.map(renderCodeNode).join('');
-  tree.innerHTML=html;updateCodeCount();
+  // one tree: themes (parents) with their codes nested; provisional ones marked "Vorschlag"
+  tree.innerHTML=codeChildren(null).map(renderCodeNode).join('');
+  updateCodeCount();
 }
 async function editCode(c){
   const name=await uiPrompt('Code-Name:',c.name,{title:'Code bearbeiten'});if(name==null)return;if(name.trim())c.name=name.trim();
@@ -786,15 +788,16 @@ async function editCode(c){
 function retrieveCode(id){
   const c=codeById(id);if(!c)return;retrievedCodeId=id;
   document.querySelectorAll('#ctree .cnode').forEach(n=>n.classList.toggle('active',n.dataset.code===id));
-  const apps=appsForCode(id);const box=$('cretrieve');
-  let html=`<div class="rhdr"><span class="cdot" style="background:${c.color};width:12px;height:12px;border-radius:4px"></span> „${esc(c.name)}" · ${apps.length} Stelle(n)<button class="btn icon" id="rclose" style="margin-left:auto;padding:2px 6px">${ic('x')}</button></div>`;
+  const apps=appsForCodeDeep(id);const box=$('cretrieve');const deep=descendantIds(id).length>1;
+  let html=`<div class="rhdr"><span class="cdot" style="background:${c.color};width:12px;height:12px;border-radius:4px"></span> „${esc(c.name)}" · ${apps.length} Stelle(n)${deep?' <span style="color:var(--muted);font-weight:400">inkl. Unter-Codes</span>':''}<button class="btn icon" id="rclose" style="margin-left:auto;padding:2px 6px">${ic('x')}</button></div>`;
   if(c.definition)html+=`<div style="font-size:11px;color:var(--muted);margin-bottom:6px">${esc(c.definition)}</div>`;
   html+=apps.map(a=>{const r=resolveAnchor(a.anchor);const seg=segments.find(s=>s.id===a.anchor.segmentId);
     const text=r.ok&&seg?seg.text.slice(r.start,r.end):(a.selectedText||'?');const sp=seg?speakerLabel(seg):'';
-    return `<div class="ritem" data-app="${a.id}" data-seg="${a.anchor.segmentId}" style="--rcol:${c.color}">`+
+    const ac=codeById(a.codeId)||c;
+    return `<div class="ritem" data-app="${a.id}" data-seg="${a.anchor.segmentId}" style="--rcol:${ac.color}">`+
       `<button class="rx" data-rx title="Kodierung entfernen">${ic('x')}</button>`+
       `<span class="rsrc ${a.source==='llm'?'llm':'human'}">${a.source==='llm'?'KI':'manuell'}</span> `+
-      `<span class="rmeta">${esc(seg?seg.time:'')} · ${esc(sp)}</span><br>„${esc(text)}"${r.ok?'':' <span style="color:#dc2626">(verschoben)</span>'}</div>`;
+      `<span class="rmeta"><span class="cdot" style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${ac.color};vertical-align:0"></span> ${esc(ac.name)} · ${esc(seg?seg.time:'')} · ${esc(sp)}</span><br>„${esc(text)}"${r.ok?'':' <span style="color:#dc2626">(verschoben)</span>'}</div>`;
   }).join('')||'<div style="color:var(--muted);font-size:12px">Noch keine Kodierungen.</div>';
   box.innerHTML=html;box.classList.add('show');
 }
@@ -804,6 +807,9 @@ $('ctree').addEventListener('click',async e=>{
   if(act){const a=act.dataset.cact;
     if(a==='del'){if(await uiConfirm(`Code „${c.name}" samt Unter-Codes und allen Kodierungen löschen?`,{title:'Code löschen',confirmText:'Löschen',danger:true})){deleteCode(id);if(retrievedCodeId===id){retrievedCodeId=null;$('cretrieve').classList.remove('show');}renderCodes();render();save();}return;}
     if(a==='addsub'){const nm=await uiPrompt('Name des Unter-Codes:','',{title:'Unter-Code'});if(nm&&nm.trim()){createCode({name:nm.trim(),parentId:id});renderCodes();save();}return;}
+    if(a==='move'){const banned=new Set(descendantIds(id));const others=codeSystem.filter(x=>!banned.has(x.id));
+      const idx=await uiChoose(`„${c.name}" einordnen unter …`,['— (oberste Ebene)'].concat(others.map(x=>x.name)));
+      if(idx==null)return;c.parentId=idx===0?null:others[idx-1].id;renderCodes();save();return;}
     if(a==='edit'){editCode(c);return;}
     if(a==='retrieve'){retrieveCode(id);return;}}
   retrieveCode(id);
@@ -1027,6 +1033,13 @@ async function applyCodingResult(jobId){
     (res.suggested_new_codes||[]).forEach(n=>{
       if(!n.name)return;const exists=codeSystem.find(c=>c.name.toLowerCase()===n.name.toLowerCase());
       if(!exists){const c=createCode({name:n.name});c.provisional=true;c.definition=n.rationale||'';}
+    });
+    (res.hierarchy||[]).forEach(t=>{  // group emergent codes under broader themes (codes -> themes, 2-level)
+      if(!t.theme)return;
+      let parent=codeSystem.find(c=>c.name.toLowerCase()===t.theme.toLowerCase());
+      if(!parent){parent=createCode({name:t.theme});parent.provisional=true;}
+      (t.codes||[]).forEach(cn=>{const child=codeSystem.find(c=>c.name.toLowerCase()===cn.toLowerCase()&&c.id!==parent.id);
+        if(child&&!descendantIds(child.id).includes(parent.id))child.parentId=parent.id;});
     });
     if(res.run){codingCfg.runs=codingCfg.runs||[];codingCfg.runs.push(res.run);}  // audit trail (Lincoln & Guba)
     hideJobBanner();render();renderCodes();save();

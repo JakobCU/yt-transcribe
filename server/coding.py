@@ -118,7 +118,7 @@ def _run_deductive(payload, progress, codes, segments, provider, model) -> dict:
                 stats["suggested"] += 1
             progress("code", done / total)
 
-    return {"suggestions": suggestions, "suggested_new_codes": [], "stats": stats}
+    return {"suggestions": suggestions, "suggested_new_codes": [], "stats": stats, "hierarchy": []}
 
 
 # --------------------------------------------------------------------------- #
@@ -195,7 +195,23 @@ def _run_running_codebook(payload, progress, seed_codes, segments, mode, provide
             stats["merged"] = len(merged)
     stats["emergent_codes"] = len({s["code_name"] for s in suggestions if s.get("code_name")})
 
-    return {"suggestions": suggestions, "suggested_new_codes": [], "stats": stats}
+    # theme-building pass — group the final emergent codes into broader themes (codes -> themes, 2-level)
+    final: dict[str, dict] = {}
+    for s in suggestions:
+        nm = s.get("code_name")
+        if nm:
+            r = final.get(nm.lower()) or {"name": nm, "count": 0}
+            r["count"] += 1
+            final[nm.lower()] = r
+    hierarchy = []
+    if len(final) >= 3:
+        try:
+            hierarchy = _build_hierarchy(provider, model, list(final.values()))
+        except Exception:  # noqa: BLE001
+            hierarchy = []
+    stats["themes"] = len(hierarchy)
+
+    return {"suggestions": suggestions, "suggested_new_codes": [], "stats": stats, "hierarchy": hierarchy}
 
 
 def _consolidate(provider, model, running_codes) -> dict:
@@ -212,3 +228,24 @@ def _consolidate(provider, model, running_codes) -> dict:
             if vl and vl != canon.lower():
                 cmap[vl] = canon
     return cmap
+
+
+def _build_hierarchy(provider, model, running_codes) -> list:
+    """Group emergent codes into broader themes (codes -> themes, 2-level). Returns
+    [{"theme": name, "codes": [code name, ...]}] over known code names only."""
+    system, user = llm.build_theming_messages(running_codes)
+    parsed = llm.parse_response(llm.complete(provider, model, system, user, TEMPERATURE))
+    valid = {r["name"].lower() for r in running_codes}
+    seen: set[str] = set()
+    themes = []
+    for t in (parsed.get("themes") or []):
+        name = (t.get("theme") or "").strip()
+        codes = []
+        for c in (t.get("codes") or []):
+            cl = (c or "").strip().lower()
+            if cl in valid and cl not in seen:     # each code under exactly one theme
+                seen.add(cl)
+                codes.append((c or "").strip())
+        if name and codes:
+            themes.append({"theme": name, "codes": codes})
+    return themes

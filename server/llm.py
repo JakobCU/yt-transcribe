@@ -196,6 +196,21 @@ def build_consolidation_messages(running_codes):
                               + "\n\nReturn the merges JSON now (empty list if nothing should be merged).")
 
 
+_SYS_THEMING = (
+    "You organize a flat list of qualitative codes into a small 2-level hierarchy: a few broader THEMES,"
+    " each grouping the codes that belong together (codes -> themes, as in thematic analysis). Use a SHORT"
+    " theme name in the SAME LANGUAGE as the codes. Put every code under exactly one theme; create as FEW"
+    " themes as capture the structure (aim 3-8). Do NOT rename or invent codes — only group the ones given.\n"
+    'Respond with STRICT JSON only: {"themes":[{"theme":"<short theme name>","codes":["<code name>","..."]}]}'
+)
+
+
+def build_theming_messages(running_codes):
+    lst = "\n".join(f"- {r['name']}  ({r.get('count', 0)}x)" for r in running_codes)
+    return _SYS_THEMING, ("CODE LIST TO GROUP (assign each code to one theme):\n" + lst
+                          + "\n\nReturn the themes JSON now.")
+
+
 # --------------------------------------------------------------------------- #
 # Providers
 # --------------------------------------------------------------------------- #
@@ -278,7 +293,11 @@ def _fake_complete(user: str) -> str:
                        "quote": t[: min(40, len(t))].strip(),
                        "rationale": "Fake-Coder.", "confidence": 0.5}]})
         return json.dumps({"segments": out})
-    # 2) consolidation pass: nothing to merge in the fake.
+    # 2) theme-building pass: group all codes under one fake theme.
+    if "CODE LIST TO GROUP" in user:
+        names = re.findall(r"^- (.+?)  \(\d+x\)$", user, re.MULTILINE)
+        return json.dumps({"themes": [{"theme": "Übergeordnetes Thema", "codes": names}]})
+    # 3) consolidation pass: nothing to merge in the fake.
     if user.lstrip().startswith("CODES (name"):
         return json.dumps({"merges": []})
     # 3) single-segment deductive (legacy build_messages format).
