@@ -199,9 +199,11 @@ def build_consolidation_messages(running_codes):
 _SYS_THEMING = (
     "You organize a flat list of qualitative codes into a small 2-level hierarchy: a few broader THEMES,"
     " each grouping the codes that belong together (codes -> themes, as in thematic analysis). Use a SHORT"
-    " theme name in the SAME LANGUAGE as the codes. Put every code under exactly one theme; create as FEW"
-    " themes as capture the structure (aim 3-8). Do NOT rename or invent codes — only group the ones given.\n"
-    'Respond with STRICT JSON only: {"themes":[{"theme":"<short theme name>","codes":["<code name>","..."]}]}'
+    " theme name in the SAME LANGUAGE as the codes. A theme name must be a BROADER, higher-level category"
+    " that summarises its group — do NOT reuse a code's exact name as a theme (themes sit ABOVE the codes)."
+    " Put every code under exactly one theme; create as FEW themes as capture the structure (aim 3-8)."
+    " Do NOT rename or invent codes — only group the ones given.\n"
+    'Respond with STRICT JSON only: {"themes":[{"theme":"<short broader theme name>","codes":["<code name>","..."]}]}'
 )
 
 
