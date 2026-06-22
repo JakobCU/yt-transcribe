@@ -100,8 +100,10 @@ button{font:inherit;cursor:pointer;color:inherit}
 .topbar .sep,.transport .sep{width:1px;height:22px;background:var(--line);margin:0 4px}
 .tb-search{flex:1 1 220px;min-width:150px}
 .tb-search #search{width:100%}
-.transport{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:7px 16px;border-top:1px solid var(--line)}
+.transport{display:flex;flex-direction:column;gap:7px;padding:7px 16px;border-top:1px solid var(--line)}
+.tr-controls{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
 .transport .lbl{font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--faint);margin-right:2px}
+.wave{width:100%;height:38px;display:block;cursor:pointer;border-radius:6px;background:var(--surface-2);border:1px solid var(--line)}
 .brand{font:600 16px/1 var(--mono);letter-spacing:.01em;margin-right:6px;white-space:nowrap}
 .brand .dot{color:var(--accent)}
 .btn{display:inline-flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:6px 11px;color:var(--ink);

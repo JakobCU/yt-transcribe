@@ -74,15 +74,19 @@
     </div>
   </div>
   <div class="transport">
-    <button class="btn icon" id="playBtn" title="Play/Pause (Leertaste)"><svg class="ic"><use href="#i-play"/></svg></button>
-    <span class="pill" id="timePill">–:– / –:–</span>
-    <div class="rateWrap"><span>Tempo</span><input type="range" id="rateSlider" min="0.5" max="2" step="0.1" value="1" title="Wiedergabetempo (Strg+↑/↓)"><b id="rateVal">1.0×</b></div>
-    <div class="sep"></div>
-    <span class="lbl">Beim Abspielen</span>
-    <button class="btn on" id="followBtn" title="Mit Audio mitscrollen">Follow</button>
-    <button class="btn on" id="rewindBtn" title="Beim Pausieren kurz zurückspulen">Auto-Rewind</button>
-    <button class="btn" id="loopBtn" title="Aktuelles Segment wiederholen">Loop</button>
-    <button class="btn on" id="editSeekBtn" title="Beim Editieren Audio zur Zeile springen">Edit→Seek</button>
+    <div class="tr-controls">
+      <button class="btn icon" id="playBtn" title="Play/Pause (Leertaste)"><svg class="ic"><use href="#i-play"/></svg></button>
+      <span class="pill" id="timePill">–:– / –:–</span>
+      <div class="sep"></div>
+      <div class="rateWrap"><span>Tempo</span><input type="range" id="rateSlider" min="0.5" max="2" step="0.1" value="1" title="Wiedergabetempo (Strg+↑/↓)"><b id="rateVal">1.0×</b></div>
+      <div class="sep"></div>
+      <span class="lbl">Beim Abspielen</span>
+      <button class="btn on" id="followBtn" title="Mit Audio mitscrollen">Follow</button>
+      <button class="btn on" id="rewindBtn" title="Beim Pausieren kurz zurückspulen">Auto-Rewind</button>
+      <button class="btn" id="loopBtn" title="Aktuelles Segment wiederholen">Loop</button>
+      <button class="btn on" id="editSeekBtn" title="Beim Editieren Audio zur Zeile springen">Edit→Seek</button>
+    </div>
+    <canvas id="wave" class="wave" title="Klick/Ziehen zum Springen"></canvas>
   </div>
 </div>
 
