@@ -809,8 +809,8 @@ $('ctree').addEventListener('click',async e=>{
   retrieveCode(id);
 });
 $('cretrieve').addEventListener('click',e=>{
-  if(e.target.id==='rclose'){$('cretrieve').classList.remove('show');retrievedCodeId=null;document.querySelectorAll('#ctree .cnode.active').forEach(n=>n.classList.remove('active'));return;}
-  if(e.target.id==='accAll'){codeApplications.forEach(a=>{if(a.status==='suggested'){a.status='accepted';a.reviewer='local';}});render();renderCodes();updateSuggestCount();renderReview();save();return;}
+  if(e.target.closest('#rclose')){$('cretrieve').classList.remove('show');retrievedCodeId=null;document.querySelectorAll('#ctree .cnode.active').forEach(n=>n.classList.remove('active'));return;}
+  if(e.target.closest('#accAll')){codeApplications.forEach(a=>{if(a.status==='suggested'){a.status='accepted';a.reviewer='local';}});render();renderCodes();updateSuggestCount();renderReview();save();return;}
   const rev=e.target.closest('[data-rev]');
   if(rev){const it=e.target.closest('.ritem');const app=codeApplications.find(a=>a.id===it.dataset.app);if(!app)return;
     if(rev.dataset.rev==='goto'){flashSegment(app.anchor.segmentId);return;}
