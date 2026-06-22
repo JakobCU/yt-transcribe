@@ -57,6 +57,20 @@ def build(embed: str | None, out: str) -> Path:
 
     html = re.sub(r"url\((vendor/fonts/[^)]+\.woff2)\)", inline_font, html)
 
+    _MIME = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+             ".gif": "image/gif", ".svg": "image/svg+xml", ".webp": "image/webp"}
+
+    def inline_img(m: re.Match) -> str:
+        src = m.group(1)
+        p = SRC / src
+        if not _is_local(src) or not p.exists():
+            return m.group(0)
+        b64 = base64.b64encode(p.read_bytes()).decode()
+        mime = _MIME.get(p.suffix.lower(), "application/octet-stream")
+        return m.group(0).replace(f'src="{src}"', f'src="data:{mime};base64,{b64}"')
+
+    html = re.sub(r'<img[^>]*\bsrc="([^"]+)"[^>]*>', inline_img, html)
+
     if embed:
         text = Path(embed).read_text(encoding="utf-8").strip()
         text = text.replace("</script", "<\\/script")  # guard against early close

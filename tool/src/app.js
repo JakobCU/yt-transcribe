@@ -223,7 +223,7 @@ function rehintAnchorsForSegment(segId){
 /* ---------- render ---------- */
 function speakerOptions(selId){
   return speakerList.map(s=>`<option value="${s.id}"${s.id===selId?' selected':''}>${esc(s.label)}${s.role?' · '+esc(s.role):''}</option>`).join('')
-    +'<option value="__new">＋ neuer Sprecher…</option>';
+    +'<option value="__new">+ neuer Sprecher…</option>';
 }
 function render(){
   const root=$('transcript'); root.innerHTML='';
@@ -235,14 +235,14 @@ function render(){
     el.className='seg turn'+(s.verified?' verified':'')+(s.edited?' edited':'')+(isCheck(s.text)&&!s.verified?' review':'');
     el.dataset.i=i; el.dataset.id=s.id; el.style.setProperty('--spk',col);
     el.innerHTML=
-      `<button class="ts" data-sec="${s.seconds}" title="Audio hierher springen">⏱ ${s.time}</button>`+
+      `<button class="ts" data-sec="${s.seconds}" title="Audio hierher springen">${ic('clock')} ${s.time}</button>`+
       `<select class="spk">${speakerOptions(s.speakerId)}</select>`+
       `<div class="text" contenteditable="true" spellcheck="false">${renderText(s)}</div>`+
       `<div class="rowtools">`+
-        `<button class="v" data-act="verify" title="geprüft (Strg+Enter)">✓</button>`+
-        `<button data-act="split" title="An Cursor teilen">₥</button>`+
-        `<button data-act="mergeup" title="Mit voriger Zeile verbinden">⤒</button>`+
-        `<button data-act="del" title="Zeile löschen">🗑</button>`+
+        `<button class="v" data-act="verify" title="geprüft (Strg+Enter)">${ic('check')}</button>`+
+        `<button data-act="split" title="An Cursor teilen">${ic('scissors')}</button>`+
+        `<button data-act="mergeup" title="Mit voriger Zeile verbinden">${ic('arrow-up-to-line')}</button>`+
+        `<button data-act="del" title="Zeile löschen">${ic('trash-2')}</button>`+
       `</div>`;
     frag.appendChild(el);
   });
@@ -356,6 +356,9 @@ function moveEdit(dir){const i=curRowIndex();if(i<0)return;
   for(const j of rng){if(segments[j].type==='turn'){focusText(j,true);rowEl(j)?.scrollIntoView({block:'center'});return;}}}
 function editingField(){const a=document.activeElement;return a&&(a.isContentEditable||['INPUT','TEXTAREA','SELECT'].includes(a.tagName));}
 
+/* ---------- lucide icon helper (references the inline SVG sprite in index.html) ---------- */
+function ic(n){return '<svg class="ic"><use href="#i-'+n+'"></use></svg>';}
+
 /* ---------- app dialogs (styled in-app modals, replacing native confirm/prompt/alert) ---------- */
 let _uidlgOpen=false;
 function uiDialog(opts){
@@ -413,8 +416,8 @@ document.addEventListener('keydown',e=>{
 });
 
 media.addEventListener('timeupdate',onTime);
-media.addEventListener('play',()=>$('playBtn').textContent='⏸');
-media.addEventListener('pause',()=>{$('playBtn').textContent='▶︎';if(autoRewind&&media.currentTime>1.5)media.currentTime-=1.2;});
+media.addEventListener('play',()=>$('playBtn').innerHTML=ic('pause'));
+media.addEventListener('pause',()=>{$('playBtn').innerHTML=ic('play');if(autoRewind&&media.currentTime>1.5)media.currentTime-=1.2;});
 media.addEventListener('loadedmetadata',()=>$('timePill').textContent='0:00 / '+fmt(media.duration));
 
 /* ---------- toolbar wiring ---------- */
@@ -551,9 +554,9 @@ const HL_COLORS=[{n:'Gelb',c:'#fef08a'},{n:'Grün',c:'#bbf7d0'},{n:'Rosa',c:'#fb
 let pendingSel=null;
 const selbar=$('selbar');
 selbar.innerHTML=HL_COLORS.map(h=>`<button class="sw" title="Markieren: ${h.n}" data-hlc="${h.c}" style="background:${h.c}"></button>`).join('')
-  +`<span class="vsep"></span><button class="act" data-act="code" title="Code zuweisen">🏷 Code</button>`
-  +`<button class="act" data-act="comment" title="Kommentar zur Auswahl">💬 Notiz</button>`
-  +`<button class="act" data-act="erase" title="Markierung(en) in der Auswahl entfernen">⌫</button>`;
+  +`<span class="vsep"></span><button class="act" data-act="code" title="Code zuweisen">${ic('tag')} Code</button>`
+  +`<button class="act" data-act="comment" title="Kommentar zur Auswahl">${ic('message-square')} Notiz</button>`
+  +`<button class="act" data-act="erase" title="Markierung(en) in der Auswahl entfernen">${ic('eraser')}</button>`;
 selbar.addEventListener('mousedown',e=>e.preventDefault()); // keep the text selection alive
 
 function closestText(node){return (node&&(node.nodeType===3?node.parentElement:node))?.closest?.('.text')||null;}
@@ -618,7 +621,7 @@ function commentSnippet(c){const r=resolveAnchor(c.anchor);
   if(r.ok)return {text:'„'+r.seg.text.slice(r.start,r.end)+'"',orphan:false};
   return {text:'„'+(c.anchor.quote||'?')+'" (Stelle nicht mehr gefunden)',orphan:true};}
 function renderComments(){const list=$('clist');
-  if(!comments.length){list.innerHTML='<div class="cempty">Noch keine Kommentare.<br>Text markieren → 💬 Notiz.</div>';return;}
+  if(!comments.length){list.innerHTML=`<div class="cempty">Noch keine Kommentare.<br>Text markieren → ${ic('message-square')} Notiz.</div>`;return;}
   const ordered=[...comments].sort((a,b)=>{const sa=segments.findIndex(s=>s.id===a.anchor.segmentId),sb=segments.findIndex(s=>s.id===b.anchor.segmentId);return sa-sb;});
   list.innerHTML=ordered.map(c=>{const sn=commentSnippet(c);const seg=segments.find(s=>s.id===c.anchor.segmentId);
     return `<div class="ccard${c.resolved?' resolved':''}" data-cid="${c.id}">
@@ -691,7 +694,7 @@ function fillCodePick(q){
   const codes=codeSystem.filter(c=>c.isCodable!==false&&(!ql||c.name.toLowerCase().includes(ql)));
   const list=codepick.querySelector('.pklist');
   list.innerHTML=codes.map((c,i)=>`<div class="pkrow${i===0?' sel':''}" data-cid="${c.id}"><span class="cdot" style="background:${c.color}"></span>${esc(c.name)}${c.provisional?' <span class="prov" style="color:var(--review);font-size:11px">(Vorschlag)</span>':''}</div>`).join('')
-    +`<div class="pkrow pknew" data-new="1">＋ Neuer Code${q?' „'+esc(q)+'"':' aus Auswahl'}</div>`;
+    +`<div class="pkrow pknew" data-new="1">${ic('plus')} Neuer Code${q?' „'+esc(q)+'"':' aus Auswahl'}</div>`;
 }
 function codePickKey(e){
   const rows=[...codepick.querySelectorAll('.pkrow')];let si=rows.findIndex(r=>r.classList.contains('sel'));if(si<0)si=0;
@@ -715,10 +718,10 @@ function renderCodeNode(c){
     `<span class="cname">${esc(c.name)}${c.provisional?'<span class="prov"> Vorschlag</span>':''}</span>`+
     `<span class="ccount">${appsForCode(c.id).length}</span>`+
     `<span class="ctools">`+
-      `<button data-cact="retrieve" title="Alle Stellen anzeigen">↳</button>`+
-      `<button data-cact="addsub" title="Unter-Code">＋</button>`+
-      `<button data-cact="edit" title="Bearbeiten">✎</button>`+
-      `<button data-cact="del" title="Löschen">🗑</button>`+
+      `<button data-cact="retrieve" title="Alle Stellen anzeigen">${ic('corner-down-right')}</button>`+
+      `<button data-cact="addsub" title="Unter-Code">${ic('plus')}</button>`+
+      `<button data-cact="edit" title="Bearbeiten">${ic('pencil')}</button>`+
+      `<button data-cact="del" title="Löschen">${ic('trash-2')}</button>`+
     `</span></div>`;
   if(kids.length)html+=`<div class="csub">${kids.map(renderCodeNode).join('')}</div>`;
   return html;
@@ -727,7 +730,7 @@ function renderCodes(){
   const ms=$('codeMode');if(ms)ms.value=codingCfg.mode||'inductive';
   refreshLLMUI();
   const tree=$('ctree');if(!tree)return;
-  if(!codeSystem.length){tree.innerHTML='<div class="cempty">Noch keine Codes.<br>Text markieren → 🏷 Code, „＋ Code", oder ein Codebook laden.</div>';updateCodeCount();return;}
+  if(!codeSystem.length){tree.innerHTML=`<div class="cempty">Noch keine Codes.<br>Text markieren → ${ic('tag')} Code, „${ic('plus')} Code", oder ein Codebook laden.</div>`;updateCodeCount();return;}
   const roots=codeChildren(null).filter(c=>!c.provisional);
   const prov=codeSystem.filter(c=>c.provisional);
   let html=roots.map(renderCodeNode).join('');
@@ -745,12 +748,12 @@ function retrieveCode(id){
   const c=codeById(id);if(!c)return;retrievedCodeId=id;
   document.querySelectorAll('#ctree .cnode').forEach(n=>n.classList.toggle('active',n.dataset.code===id));
   const apps=appsForCode(id);const box=$('cretrieve');
-  let html=`<div class="rhdr"><span class="cdot" style="background:${c.color};width:12px;height:12px;border-radius:4px"></span> „${esc(c.name)}" · ${apps.length} Stelle(n)<button class="btn" id="rclose" style="margin-left:auto;padding:2px 8px">✕</button></div>`;
+  let html=`<div class="rhdr"><span class="cdot" style="background:${c.color};width:12px;height:12px;border-radius:4px"></span> „${esc(c.name)}" · ${apps.length} Stelle(n)<button class="btn icon" id="rclose" style="margin-left:auto;padding:2px 6px">${ic('x')}</button></div>`;
   if(c.definition)html+=`<div style="font-size:11px;color:var(--muted);margin-bottom:6px">${esc(c.definition)}</div>`;
   html+=apps.map(a=>{const r=resolveAnchor(a.anchor);const seg=segments.find(s=>s.id===a.anchor.segmentId);
     const text=r.ok&&seg?seg.text.slice(r.start,r.end):(a.selectedText||'?');const sp=seg?speakerLabel(seg):'';
     return `<div class="ritem" data-app="${a.id}" data-seg="${a.anchor.segmentId}" style="--rcol:${c.color}">`+
-      `<button class="rx" data-rx title="Kodierung entfernen">✕</button>`+
+      `<button class="rx" data-rx title="Kodierung entfernen">${ic('x')}</button>`+
       `<span class="rsrc ${a.source==='llm'?'llm':'human'}">${a.source==='llm'?'KI':'manuell'}</span> `+
       `<span class="rmeta">${esc(seg?seg.time:'')} · ${esc(sp)}</span><br>„${esc(text)}"${r.ok?'':' <span style="color:#dc2626">(verschoben)</span>'}</div>`;
   }).join('')||'<div style="color:var(--muted);font-size:12px">Noch keine Kodierungen.</div>';
@@ -990,10 +993,10 @@ function renderReview(){
   document.querySelectorAll('#ctree .cnode.active').forEach(n=>n.classList.remove('active'));
   const sugg=codeApplications.filter(a=>a.status==='suggested');
   const box=$('cretrieve');
-  let html=`<div class="rhdr">✨ KI-Vorschläge · ${sugg.length}<span style="margin-left:auto"></span>`;
+  let html=`<div class="rhdr">${ic('sparkles')} KI-Vorschläge · ${sugg.length}<span style="margin-left:auto"></span>`;
   if(sugg.length)html+=`<button class="btn" id="accAll" style="padding:2px 8px">alle annehmen</button>`;
-  html+=`<button class="btn" id="rclose" style="padding:2px 8px;margin-left:6px">✕</button></div>`;
-  if(!sugg.length)html+='<div style="color:var(--muted);font-size:12px">Keine offenen Vorschläge. „🤖 KI-Kodieren" erzeugt welche.</div>';
+  html+=`<button class="btn icon" id="rclose" style="padding:2px 6px;margin-left:6px">${ic('x')}</button></div>`;
+  if(!sugg.length)html+=`<div style="color:var(--muted);font-size:12px">Keine offenen Vorschläge. „${ic('bot')} KI-Kodieren" erzeugt welche.</div>`;
   else html+=sugg.map(a=>{
     const code=codeById(a.codeId);const r=resolveAnchor(a.anchor);const seg=segments.find(s=>s.id===a.anchor.segmentId);
     const text=r.ok&&seg?seg.text.slice(r.start,r.end):(a.selectedText||'?');const col=code?code.color:'#9333ea';
@@ -1003,9 +1006,9 @@ function renderReview(){
       `<div class="rmeta"><span class="cdot" style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${col};vertical-align:-1px"></span> ${esc(code?code.name:'?')}`+
         `${a.confidence!=null?' · '+Math.round(a.confidence*100)+'%':''} · ${esc(seg?seg.time:'')} ${esc(seg?speakerLabel(seg):'')}</div>`+
       `<div style="margin-top:5px;display:flex;gap:5px">`+
-        `<button class="btn" data-rev="accept" style="padding:1px 8px">✓ annehmen</button>`+
-        `<button class="btn" data-rev="reject" style="padding:1px 8px">✗ ablehnen</button>`+
-        `<button class="btn" data-rev="goto" style="padding:1px 8px">↳ Stelle</button>`+
+        `<button class="btn" data-rev="accept" style="padding:1px 8px">${ic('check')} annehmen</button>`+
+        `<button class="btn" data-rev="reject" style="padding:1px 8px">${ic('x')} ablehnen</button>`+
+        `<button class="btn" data-rev="goto" style="padding:1px 8px">${ic('corner-down-right')} Stelle</button>`+
       `</div></div>`;
   }).join('');
   box.innerHTML=html;box.classList.add('show');
@@ -1064,15 +1067,15 @@ $('libClose').onclick=()=>$('libpanel').classList.remove('show');
 async function loadProjects(){try{projectsCache=await (await fetch('/api/projects',{cache:'no-store'})).json();}catch(_){projectsCache=[];}renderLibrary();}
 function renderLibrary(){
   const body=$('libBody');let html='';
-  html+='<div class="lactions"><button class="btn primary" id="newProjBtn">＋ Neues Projekt</button></div>';
+  html+=`<div class="lactions"><button class="btn primary" id="newProjBtn">${ic('plus')} Neues Projekt</button></div>`;
   html+='<div class="lsec">Projekte</div>';
-  html+=projectsCache.length?projectsCache.map(p=>`<div class="lrow${p.id===activeProjectId?' active':''}" data-proj="${p.id}"><span class="ltitle">${esc(p.name)}</span><span class="lmeta">${p.documents}📄</span><span class="lrole">${esc(p.role)}</span></div>`).join('')
+  html+=projectsCache.length?projectsCache.map(p=>`<div class="lrow${p.id===activeProjectId?' active':''}" data-proj="${p.id}"><span class="ltitle">${esc(p.name)}</span><span class="lmeta">${ic('file-text')} ${p.documents}</span><span class="lrole">${esc(p.role)}</span></div>`).join('')
     :'<div class="lempty">Noch keine Projekte — leg eines an.</div>';
   if(activeProjectId){
     const proj=projectsCache.find(p=>p.id===activeProjectId);
     html+=`<div class="lsec">Dokumente · ${esc(proj?proj.name:'')}</div>`;
-    html+='<div class="lactions"><button class="btn" id="txInProj">🎙 Audio transkribieren</button><button class="btn" id="importTxt">📄 .txt importieren</button>';
-    if(proj&&proj.role==='admin')html+='<button class="btn" id="addMember">＋ Mitglied</button>';
+    html+=`<div class="lactions"><button class="btn" id="txInProj">${ic('mic')} Audio transkribieren</button><button class="btn" id="importTxt">${ic('file-text')} .txt importieren</button>`;
+    if(proj&&proj.role==='admin')html+=`<button class="btn" id="addMember">${ic('user-plus')} Mitglied</button>`;
     html+='</div><div id="docList"><div class="lempty">…</div></div>';
   }
   body.innerHTML=html;
@@ -1164,5 +1167,5 @@ function showConflict(kind){const b=$('restoreBanner');
 /* ---------- boot ---------- */
 (function(){const emb=$('embedded-transcript').textContent.trim();
   if(emb&&!/^@@/.test(emb)){_lastRaw=emb;loadTranscript(emb,'GAIN co-design ws 2 diotima MERGED.txt');}
-  else{$('transcript').innerHTML='<p class="hint" style="text-align:center;padding:40px">Kein Transkript eingebettet. Oben „📄 Transkript laden" wählen (eine .txt mit <code>[HH:MM:SS] SPEAKER: Text</code>-Zeilen) und „🔊 Audio/Video laden".</p>';}
+  else{$('transcript').innerHTML=`<p class="hint" style="text-align:center;padding:40px">Kein Transkript eingebettet. Oben „${ic('file-text')} Transkript laden" wählen (eine .txt mit <code>[HH:MM:SS] SPEAKER: Text</code>-Zeilen) und „${ic('file-audio')} Audio/Video laden".</p>`;}
 })();

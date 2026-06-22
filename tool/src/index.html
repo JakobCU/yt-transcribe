@@ -7,17 +7,53 @@
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+<!-- Lucide icon sprite (offline, inline). Use: <svg class="ic"><use href="#i-NAME"/></svg> -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="i-library" viewBox="0 0 24 24"><path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/></symbol>
+<symbol id="i-file-text" viewBox="0 0 24 24"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></symbol>
+<symbol id="i-file-audio" viewBox="0 0 24 24"><path d="M4 6.835V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.706.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2h-.343"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M2 19a2 2 0 0 1 4 0v1a2 2 0 0 1-4 0v-4a6 6 0 0 1 12 0v4a2 2 0 0 1-4 0v-1a2 2 0 0 1 4 0"/></symbol>
+<symbol id="i-mic" viewBox="0 0 24 24"><path d="M12 19v3"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><rect x="9" y="2" width="6" height="13" rx="3"/></symbol>
+<symbol id="i-play" viewBox="0 0 24 24"><path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z"/></symbol>
+<symbol id="i-pause" viewBox="0 0 24 24"><rect x="14" y="3" width="5" height="18" rx="1"/><rect x="5" y="3" width="5" height="18" rx="1"/></symbol>
+<symbol id="i-download" viewBox="0 0 24 24"><path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/></symbol>
+<symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m17 8-5-5-5 5"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/></symbol>
+<symbol id="i-ellipsis" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></symbol>
+<symbol id="i-tag" viewBox="0 0 24 24"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/></symbol>
+<symbol id="i-message-square" viewBox="0 0 24 24"><path d="M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z"/></symbol>
+<symbol id="i-sun-moon" viewBox="0 0 24 24"><path d="M12 2v2"/><path d="M14.837 16.385a6 6 0 1 1-7.223-7.222c.624-.147.97.66.715 1.248a4 4 0 0 0 5.26 5.259c.589-.255 1.396.09 1.248.715"/><path d="M16 12a4 4 0 0 0-4-4"/><path d="m19 5-1.256 1.256"/><path d="M20 12h2"/></symbol>
+<symbol id="i-circle-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></symbol>
+<symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></symbol>
+<symbol id="i-plus" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></symbol>
+<symbol id="i-sparkles" viewBox="0 0 24 24"><path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z"/><path d="M20 2v4"/><path d="M22 4h-4"/><circle cx="4" cy="20" r="2"/></symbol>
+<symbol id="i-bot" viewBox="0 0 24 24"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></symbol>
+<symbol id="i-pencil" viewBox="0 0 24 24"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></symbol>
+<symbol id="i-trash-2" viewBox="0 0 24 24"><path d="M10 11v6"/><path d="M14 11v6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></symbol>
+<symbol id="i-corner-down-right" viewBox="0 0 24 24"><path d="m15 10 5 5-5 5"/><path d="M4 4v7a4 4 0 0 0 4 4h12"/></symbol>
+<symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+<symbol id="i-scissors" viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><path d="M8.12 8.12 12 12"/><path d="M20 4 8.12 15.88"/><circle cx="6" cy="18" r="3"/><path d="M14.8 14.8 20 20"/></symbol>
+<symbol id="i-arrow-up-to-line" viewBox="0 0 24 24"><path d="M5 3h14"/><path d="m18 13-6-6-6 6"/><path d="M12 7v14"/></symbol>
+<symbol id="i-eraser" viewBox="0 0 24 24"><path d="M21 21H8a2 2 0 0 1-1.42-.587l-3.994-3.999a2 2 0 0 1 0-2.828l10-10a2 2 0 0 1 2.829 0l5.999 6a2 2 0 0 1 0 2.828L12.834 21"/><path d="m5.082 11.09 8.828 8.828"/></symbol>
+<symbol id="i-user-plus" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" x2="19" y1="8" y2="14"/><line x1="22" x2="16" y1="11" y2="11"/></symbol>
+</defs></svg>
+
+<header class="aitbar">
+  <img class="ait-logo" src="vendor/ait_logo.png" alt="AIT — Austrian Institute of Technology">
+  <span class="ait-div"></span>
+  <span class="ait-wm">transkript<span class="dot">::</span>studio</span>
+  <span class="ait-right"><span class="ait-pill">Prototyp</span></span>
+</header>
+
 <div class="topbar">
   <div class="grp">
-    <span class="brand">transkript<span class="dot">::</span>studio</span>
-    <button class="btn" id="libBtn" style="display:none" title="Bibliothek — Projekte & Dokumente">📚 Bibliothek</button>
-    <button class="btn" id="loadTxt">📄 Transkript laden</button>
-    <button class="btn" id="loadAud">🔊 Audio/Video laden</button>
-    <button class="btn primary" id="transcribeBtn" style="display:none" title="Aufnahme automatisch transkribieren">🎙 Transkribieren</button>
+    <button class="btn" id="libBtn" style="display:none" title="Bibliothek — Projekte & Dokumente"><svg class="ic"><use href="#i-library"/></svg> Bibliothek</button>
+    <button class="btn" id="loadTxt"><svg class="ic"><use href="#i-file-text"/></svg> Transkript laden</button>
+    <button class="btn" id="loadAud"><svg class="ic"><use href="#i-file-audio"/></svg> Audio/Video laden</button>
+    <button class="btn primary" id="transcribeBtn" style="display:none" title="Aufnahme automatisch transkribieren"><svg class="ic"><use href="#i-mic"/></svg> Transkribieren</button>
   </div>
   <div class="sep"></div>
   <div class="grp">
-    <button class="btn" id="playBtn" title="Play/Pause (Leertaste)">▶︎</button>
+    <button class="btn icon" id="playBtn" title="Play/Pause (Leertaste)"><svg class="ic"><use href="#i-play"/></svg></button>
     <span class="pill" id="timePill">–:– / –:–</span>
     <div class="rateWrap"><span>Tempo</span><input type="range" id="rateSlider" min="0.5" max="2" step="0.1" value="1" title="Wiedergabetempo (Strg+↑/↓)"><b id="rateVal">1.0×</b></div>
   </div>
@@ -40,19 +76,19 @@
   <div class="sep"></div>
   <div class="grp">
     <span class="pill" id="progress"><b>0</b>/0 geprüft · <b>0</b> Marker</span>
-    <button class="btn primary" id="exportTxt" title="Export .txt (Strg+S)">⬇︎ Export .txt</button>
-    <button class="btn" id="moreExport">⋯</button>
-    <button class="btn" id="codesBtn" title="Codes / thematisches Kodieren">🏷 <span id="codeCount">0</span></button>
-    <button class="btn" id="commentsBtn" title="Kommentare anzeigen">💬 <span id="cCount">0</span></button>
-    <button class="btn icon" id="themeBtn" title="Hell / Dunkel umschalten">◐</button>
+    <button class="btn primary" id="exportTxt" title="Export .txt (Strg+S)"><svg class="ic"><use href="#i-download"/></svg> Export .txt</button>
+    <button class="btn icon" id="moreExport" title="Weitere Exporte / Backup"><svg class="ic"><use href="#i-ellipsis"/></svg></button>
+    <button class="btn" id="codesBtn" title="Codes / thematisches Kodieren"><svg class="ic"><use href="#i-tag"/></svg> Codes <span id="codeCount">0</span></button>
+    <button class="btn" id="commentsBtn" title="Kommentare anzeigen"><svg class="ic"><use href="#i-message-square"/></svg> Kommentare <span id="cCount">0</span></button>
+    <button class="btn icon" id="themeBtn" title="Hell / Dunkel umschalten"><svg class="ic"><use href="#i-sun-moon"/></svg></button>
     <span class="userchip" id="userChip" title="Bibliothek öffnen"><b id="userName"></b></span>
-    <button class="btn" id="helpBtn" title="Hilfe (?)">?</button>
+    <button class="btn icon" id="helpBtn" title="Hilfe (?)"><svg class="ic"><use href="#i-circle-help"/></svg></button>
   </div>
 </div>
 
 <div id="playerWrap">
   <video id="player" class="audioOnly" controls></video>
-  <span id="noMedia">Kein Audio geladen — „🔊 Audio/Video laden" (empfohlen: die <code>.mp4</code>). Datei bleibt lokal, nichts wird hochgeladen.</span>
+  <span id="noMedia">Kein Audio geladen — „<svg class="ic"><use href="#i-file-audio"/></svg> Audio/Video laden" (empfohlen: die <code>.mp4</code>). Datei bleibt lokal, nichts wird hochgeladen.</span>
 </div>
 
 <div class="banner" id="restoreBanner">
@@ -87,14 +123,14 @@
 
 <!-- library: projects + documents (server mode) -->
 <aside id="libpanel">
-  <header><span>📚 Bibliothek</span><button class="btn" id="libClose">✕</button></header>
+  <header><span><svg class="ic"><use href="#i-library"/></svg> Bibliothek</span><button class="btn icon" id="libClose"><svg class="ic"><use href="#i-x"/></svg></button></header>
   <div class="lwrap" id="libBody"></div>
   <div class="luser"><span class="lu-mail" id="luMail"></span><button class="btn" id="logoutBtn">Abmelden</button></div>
 </aside>
 
 <!-- transcribe options modal (backend mode) -->
 <div id="txModal"><div class="card">
-  <h2>🎙 Aufnahme transkribieren</h2>
+  <h2><svg class="ic" style="width:20px;height:20px"><use href="#i-mic"/></svg> Aufnahme transkribieren</h2>
   <p class="hint">Audio/Video auswählen — wird auf dem Server transkribiert (Whisper) und ggf. nach Sprechern getrennt (Diarization). Das Ergebnis öffnet danach direkt hier.</p>
   <div class="txrow"><label>Datei</label><input type="file" id="txFile" accept="audio/*,video/*"></div>
   <div class="txrow"><label>Modell</label>
@@ -124,15 +160,15 @@
 
 <!-- comments / notes side panel -->
 <aside id="cpanel">
-  <header><span>💬 Kommentare</span><button class="btn" id="cpanelClose">✕</button></header>
+  <header><span><svg class="ic"><use href="#i-message-square"/></svg> Kommentare</span><button class="btn icon" id="cpanelClose"><svg class="ic"><use href="#i-x"/></svg></button></header>
   <div class="clist" id="clist"></div>
 </aside>
 
 <!-- codes / thematic coding side panel -->
 <aside id="codepanel">
   <header>
-    <span>🏷 Codes</span>
-    <button class="btn" id="codepanelClose">✕</button>
+    <span><svg class="ic"><use href="#i-tag"/></svg> Codes</span>
+    <button class="btn icon" id="codepanelClose"><svg class="ic"><use href="#i-x"/></svg></button>
   </header>
   <div class="cpbar">
     <label class="modewrap" title="Induktiv: Codes entstehen am Material · Deduktiv: feste Kategorien vorgeben · Hybrid: beides">
@@ -144,14 +180,14 @@
       </select>
     </label>
     <div class="cpbtns">
-      <button class="btn" id="newCodeBtn" title="Neuen Code anlegen">＋ Code</button>
-      <button class="btn" id="cbLoad" title="Codebook (YAML) laden">⬆︎ Codebook</button>
-      <button class="btn" id="cbSave" title="Codebook (YAML) exportieren">⬇︎ Codebook</button>
+      <button class="btn" id="newCodeBtn" title="Neuen Code anlegen"><svg class="ic"><use href="#i-plus"/></svg> Code</button>
+      <button class="btn" id="cbLoad" title="Codebook (YAML) laden"><svg class="ic"><use href="#i-upload"/></svg> Codebook</button>
+      <button class="btn" id="cbSave" title="Codebook (YAML) exportieren"><svg class="ic"><use href="#i-download"/></svg> Codebook</button>
     </div>
     <div class="cpllm" id="cpllm" style="display:none">
       <select id="llmProvider" title="LLM-Backend"></select>
-      <button class="btn primary" id="llmCodeBtn" title="Transkript automatisch mit dem Codebook kodieren">🤖 KI-Kodieren</button>
-      <button class="btn" id="reviewBtn" title="KI-Vorschläge prüfen">✨ Vorschläge <span id="suggestCount">0</span></button>
+      <button class="btn primary" id="llmCodeBtn" title="Transkript automatisch mit dem Codebook kodieren"><svg class="ic"><use href="#i-bot"/></svg> KI-Kodieren</button>
+      <button class="btn" id="reviewBtn" title="KI-Vorschläge prüfen"><svg class="ic"><use href="#i-sparkles"/></svg> Vorschläge <span id="suggestCount">0</span></button>
       <span class="hint" id="llmHint" style="display:none;flex-basis:100%"></span>
     </div>
   </div>
@@ -161,7 +197,7 @@
 <div id="help"><div class="card">
   <h2>Tastatur-Shortcuts</h2>
   <table>
-    <tr><td><kbd>Esc</kbd></td><td>Play / Pause (auch beim Tippen)</td></tr>
+    <tr><td><kbd>Leertaste</kbd> / <kbd>Esc</kbd></td><td>Play / Pause (Leertaste nicht beim Tippen)</td></tr>
     <tr><td><kbd>Strg</kbd>+<kbd>←</kbd> / <kbd>→</kbd></td><td>3 s zurück / vor</td></tr>
     <tr><td><kbd>Strg</kbd>+<kbd>↑</kbd> / <kbd>↓</kbd></td><td>schneller / langsamer (0.5×–2×)</td></tr>
     <tr><td><kbd>Strg</kbd>+<kbd>Enter</kbd></td><td>Zeile „geprüft" + zur nächsten ungeprüften</td></tr>
@@ -171,8 +207,8 @@
     <tr><td><kbd>?</kbd></td><td>diese Hilfe</td></tr>
   </table>
   <p class="hint">Klick auf den Zeitstempel springt die Audio an die Stelle. Klick in den Text zum Editieren.
-  <b>Text mit der Maus auswählen</b> → Leiste zum Markieren (Farben), Kodieren (🏷 Code) und Kommentieren (💬 Notiz).
-  Oben <b>🏷</b> = Code-Panel (Modus induktiv/deduktiv/hybrid, Codebook laden/exportieren), <b>💬</b> = Kommentare.
+  <b>Text mit der Maus auswählen</b> → Leiste zum Markieren (Farben), Kodieren (<svg class="ic"><use href="#i-tag"/></svg> Code) und Kommentieren (<svg class="ic"><use href="#i-message-square"/></svg> Notiz).
+  Oben <svg class="ic"><use href="#i-tag"/></svg> = Code-Panel (Modus induktiv/deduktiv/hybrid, Codebook laden/exportieren), <svg class="ic"><use href="#i-message-square"/></svg> = Kommentare.
   Fortschritt wird automatisch im Browser gespeichert (lokal).</p>
   <div style="text-align:right"><button class="btn primary" id="helpClose">Schließen</button></div>
 </div></div>

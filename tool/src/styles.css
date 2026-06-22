@@ -80,14 +80,23 @@ button{font:inherit;cursor:pointer;color:inherit}
 @keyframes uidlg-pop{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:none}}
 
 /* ---------- top bar ---------- */
-.topbar{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--surface) 88%,transparent);
+.aitbar{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:14px;height:46px;padding:0 16px;
+  background:#1a1714;color:#fff;border-bottom:1px solid rgba(0,0,0,.45)}
+.aitbar .ait-logo{height:22px;width:auto;display:block}
+.aitbar .ait-div{width:1px;height:20px;background:rgba(255,255,255,.22)}
+.aitbar .ait-wm{font:600 15px/1 var(--mono);letter-spacing:.01em;color:#fff}
+.aitbar .ait-wm .dot{color:#5ec5be}
+.aitbar .ait-right{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:12px;color:rgba(255,255,255,.7)}
+.aitbar .ait-pill{border:1px solid rgba(255,255,255,.2);border-radius:999px;padding:2px 10px}
+.topbar{position:sticky;top:46px;z-index:20;background:color-mix(in srgb,var(--surface) 88%,transparent);
   backdrop-filter:blur(8px);border-bottom:1px solid var(--line);padding:9px 16px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .topbar .grp{display:flex;gap:6px;align-items:center}
 .topbar .sep{width:1px;height:22px;background:var(--line);margin:0 3px}
 .brand{font:600 16px/1 var(--mono);letter-spacing:.01em;margin-right:6px;white-space:nowrap}
 .brand .dot{color:var(--accent)}
-.btn{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:6px 11px;color:var(--ink);
+.btn{display:inline-flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:6px 11px;color:var(--ink);
   font-size:13px;transition:border-color .15s,background .15s,transform .05s}
+.ic{width:16px;height:16px;flex:none;vertical-align:-0.18em;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .btn:hover{border-color:var(--line-2);background:var(--surface-2)}
 .btn:active{transform:translateY(1px)}
 .btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:500}
