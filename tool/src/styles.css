@@ -322,6 +322,11 @@ pre.hdr{white-space:pre-wrap;font:11px/1.55 var(--mono);color:var(--muted);backg
 .lrow .ltitle{flex:1;font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .lrow .lmeta{font:11px var(--mono);color:var(--muted)}
 .lrow .lrole{font:10px var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--accent-press);background:var(--accent-soft);border-radius:999px;padding:1px 8px}
+.lrow.txrow{flex-wrap:wrap;border-style:dashed}
+.lrow.txrow .ltitle{display:inline-flex;align-items:center;gap:5px}
+.lrow.txrow .txstage{color:var(--accent-press);font-variant-numeric:tabular-nums}
+.lrow.txrow .txbar{flex-basis:100%;height:4px;background:var(--line);border-radius:999px;overflow:hidden;margin-top:6px}
+.lrow.txrow .txfill{height:100%;background:var(--accent);transition:width .3s}
 .lactions{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 4px}
 .lactions .btn{font-size:12px;padding:6px 10px}
 .lempty{color:var(--muted);font-size:13px;padding:14px 4px;text-align:center}

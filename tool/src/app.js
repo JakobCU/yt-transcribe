@@ -20,6 +20,7 @@ let headerText='', transcriptId='', transcriptName='';
 let docMeta={};            // {docId,rev,createdAt,updatedAt,media}
 let codingCfg={mode:'inductive',codebookName:'',codebookVersion:1};  // induktiv | deduktiv | hybrid
 let serverDoc=null, currentUser=null, pendingProjectId=null;  // team-server mode (null = offline/localStorage)
+let txJobs=[];   // in-flight transcription jobs, shown as live placeholders in the project's document list
 let pendingAudioFile=null;  // file picked for transcription → auto-loaded into the player afterwards
 
 let activeIndex=-1, lastFollow=-1, saveTimer=null;
@@ -910,13 +911,26 @@ $('txStart').onclick=async()=>{
   const fd=new FormData();fd.append('audio',f);fd.append('model',$('txModel').value);
   fd.append('language',$('txLang').value.trim());fd.append('diarize',$('txDiar').checked?'true':'false');
   fd.append('device',$('txDevice').value);
-  if(pendingProjectId)fd.append('project_id',pendingProjectId);
+  const projId=pendingProjectId||null;
+  if(projId)fd.append('project_id',projId);
   closeTxModal();showJobBanner('Lade „'+f.name+'" hoch…',0.02,false);
   let jobId;
   try{const r=await fetch('/api/transcribe',{method:'POST',body:fd});if(!r.ok)throw new Error('Upload fehlgeschlagen ('+r.status+')');jobId=(await r.json()).job_id;}
   catch(err){showJobBanner('Fehler: '+err.message,0,true);return;}
+  txJobs.push({jobId,projectId:projId,name:f.name.replace(/\.[^.]+$/,''),stage:'queued',progress:0.02,status:'running'});
+  if(projId&&$('libpanel').classList.contains('show')&&activeProjectId===projId)loadDocs();   // show the live placeholder
   trackJob(jobId,f.name);
 };
+function syncTxJob(jobId,job){
+  const ent=txJobs.find(t=>t.jobId===jobId);if(!ent)return;
+  if(job.stage)ent.stage=job.stage;
+  if(typeof job.progress==='number')ent.progress=job.progress;
+  if(job.status==='done')ent.status='done';
+  const row=document.getElementById('txrow-'+jobId);if(!row)return;
+  const st=row.querySelector('.txstage'),fill=row.querySelector('.txfill');
+  if(st)st.textContent=(job.stage==='transcribe'&&job.progress)?Math.round(job.progress*100)+'%':(STAGE_LABEL[job.stage]||job.stage||'läuft…');
+  if(fill)fill.style.width=Math.round(clamp(job.progress||0.02,0,1)*100)+'%';
+}
 function trackJob(jobId,fname,onDone){
   if(activeJobFinish)activeJobFinish();  // close any previous job's stream first
   let es=null,polling=null,finished=false,txStart=0;
@@ -924,6 +938,7 @@ function trackJob(jobId,fname,onDone){
   activeJobFinish=finish;
   const onUpdate=(job)=>{
     if(finished)return;
+    syncTxJob(jobId,job);   // keep the library placeholder row in sync
     if(job.error){finish();showJobBanner('Fehler: '+job.error,0,true);return;}
     if(job.status==='done'){finish();(onDone||(()=>loadJobResult(jobId,fname)))();return;}
     if(job.stage==='transcribe'&&job.progress>0){
@@ -946,9 +961,21 @@ async function loadJobResult(jobId,fname){
   try{
     const r=await fetch('/api/jobs/'+jobId+'/result');if(!r.ok)throw new Error('Ergebnis nicht abrufbar ('+r.status+')');
     const res=await r.json();
-    if(res.document_id){hideJobBanner();pendingProjectId=null;await loadProjects();await openServerDocument(res.document_id);
-      if(pendingAudioFile){loadMedia(pendingAudioFile);pendingAudioFile=null;}
-      toast('Transkript erstellt'+(res.device?' · '+res.device.toUpperCase():'')+(res.diarized?' · mit Sprechern':''));return;}
+    if(res.document_id){
+      const ent=txJobs.find(t=>t.jobId===jobId);const projId=ent?ent.projectId:pendingProjectId;
+      txJobs=txJobs.filter(t=>t.jobId!==jobId);
+      hideJobBanner();pendingProjectId=null;await loadProjects();
+      const dev=(res.device?' · '+res.device.toUpperCase():'')+(res.diarized?' · mit Sprechern':'');
+      if(!serverDoc){                                   // nothing open → open the fresh transcript
+        await openServerDocument(res.document_id);
+        if(pendingAudioFile){loadMedia(pendingAudioFile);pendingAudioFile=null;}
+        toast('Transkript erstellt'+dev);
+      }else{                                            // keep the current doc; surface it in the library
+        if($('libpanel').classList.contains('show')&&activeProjectId===projId)loadDocs();
+        pendingAudioFile=null;
+        toast('Transkript fertig: „'+(res.name||(ent&&ent.name)||'Transkript')+'" — im Projekt'+dev);
+      }
+      return;}
     if(!res||!res.text)throw new Error('Leeres Ergebnis');
     showJobBanner('Fertig — lade Transkript…',1,false);
     const name=(res.name||fname||'transkript').replace(/\.[^.]+$/,'')+'.txt';
@@ -1150,9 +1177,15 @@ function renderLibrary(){
 async function loadDocs(){const pid=activeProjectId;let docs=[];
   try{docs=await (await fetch('/api/projects/'+pid+'/documents',{cache:'no-store'})).json();}catch(_){}
   const el=$('docList');if(!el)return;
-  el.innerHTML=docs.length?docs.map(d=>`<div class="lrow${serverDoc&&serverDoc.id===d.id?' active':''}" data-doc="${d.id}"><span class="ltitle">${esc(d.name)}</span><span class="lmeta">${d.segments} Zeilen</span></div>`).join('')
-    :'<div class="lempty">Noch keine Dokumente. Transkribiere oder importiere eines.</div>';
+  const jobs=txJobs.filter(j=>j.projectId===pid&&j.status==='running');
+  const ph=jobs.map(j=>`<div class="lrow txrow" id="txrow-${j.jobId}" data-txjob="${j.jobId}" title="Live-Fortschritt anzeigen">`+
+    `<span class="ltitle">${ic('mic')} ${esc(j.name)}</span>`+
+    `<span class="lmeta txstage">${(j.stage==='transcribe'&&j.progress)?Math.round(j.progress*100)+'%':(STAGE_LABEL[j.stage]||j.stage||'läuft…')}</span>`+
+    `<div class="txbar"><div class="txfill" style="width:${Math.round(clamp(j.progress||0.02,0,1)*100)}%"></div></div></div>`).join('');
+  const rows=docs.map(d=>`<div class="lrow${serverDoc&&serverDoc.id===d.id?' active':''}" data-doc="${d.id}"><span class="ltitle">${esc(d.name)}</span><span class="lmeta">${d.segments} Zeilen</span></div>`).join('');
+  el.innerHTML=(ph+rows)||'<div class="lempty">Noch keine Dokumente. Transkribiere oder importiere eines.</div>';
   el.querySelectorAll('[data-doc]').forEach(x=>x.onclick=()=>openServerDocument(x.dataset.doc));
+  el.querySelectorAll('[data-txjob]').forEach(x=>x.onclick=()=>{const j=txJobs.find(t=>t.jobId===x.dataset.txjob);if(j){trackJob(j.jobId,j.name);toast('Transkription läuft — Fortschritt oben & hier');}});
 }
 async function createProjectFlow(){const name=await uiPrompt('Name des neuen Projekts:','',{title:'Neues Projekt'});if(!name||!name.trim())return;
   fetch('/api/projects',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name.trim()})})
