@@ -79,6 +79,8 @@ button{font:inherit;cursor:pointer;color:inherit}
 .uidlg-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}
 .btn.danger{background:var(--danger);color:#fff;border-color:transparent}
 .btn.danger:hover{filter:brightness(1.05)}
+.btn.danger-ghost{color:var(--danger);border-color:var(--danger-soft)}
+.btn.danger-ghost:hover{background:var(--danger-soft);border-color:var(--danger)}
 @keyframes uidlg-fade{from{opacity:0}to{opacity:1}}
 @keyframes uidlg-pop{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:none}}
 

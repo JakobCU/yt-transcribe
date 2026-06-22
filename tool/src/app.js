@@ -824,6 +824,13 @@ $('codesBtn').onclick=()=>{const p=$('codepanel');const show=!p.classList.contai
 $('codepanelClose').onclick=()=>$('codepanel').classList.remove('show');
 $('codeMode').onchange=()=>{codingCfg.mode=$('codeMode').value;save();toast('Modus: '+$('codeMode').selectedOptions[0].text);};
 $('newCodeBtn').onclick=async()=>{const nm=await uiPrompt('Name des neuen Codes:','',{title:'Neuer Code'});if(!nm||!nm.trim())return;createCode({name:nm.trim()});renderCodes();save();};
+$('clearCodesBtn').onclick=async()=>{
+  if(!codeSystem.length&&!codeApplications.length){toast('Keine Codes vorhanden');return;}
+  const nc=codeSystem.length, na=codeApplications.length;
+  if(!await uiConfirm(`Wirklich ALLE Codes (${nc}) und Kodierungen (${na}) löschen? Das lässt sich nicht rückgängig machen.`,{title:'Alle Codes löschen',confirmText:'Alles löschen',danger:true}))return;
+  codeSystem=[];codeApplications=[];retrievedCodeId=null;$('cretrieve').classList.remove('show');
+  renderCodes();render();updateSuggestCount();save();toast('Alle Codes & Kodierungen gelöscht');
+};
 
 /* codebook YAML import / export — the editable "how to code" instruction file */
 function codebookToYaml(){
