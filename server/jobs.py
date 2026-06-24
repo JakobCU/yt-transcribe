@@ -75,6 +75,20 @@ def get_result(job_id: str) -> Optional[dict]:
         return job.get("result") if job else None
 
 
+def cancel_job(job_id: str) -> dict:
+    """Cancel a job that hasn't started yet (still 'queued'); the worker skips it.
+    A running job can't be cancelled here. Returns {cancelled, status}."""
+    with _lock:
+        job = _jobs.get(job_id)
+        if job is None:
+            return {"cancelled": False, "status": "unknown"}
+        if job["status"] == "queued":
+            job["status"] = "cancelled"
+            job["stage"] = "cancelled"
+            return {"cancelled": True, "status": "cancelled"}
+        return {"cancelled": False, "status": job["status"]}
+
+
 def _evict_locked() -> None:
     if len(_jobs) <= MAX_JOBS:
         return
@@ -109,9 +123,9 @@ def _loop(kind: str) -> None:
         try:
             with _lock:
                 job = _jobs.get(job_id)
-                payload = dict(job["_input"]) if job else None
-            if payload is None:
-                continue
+                if job is None or job["status"] == "cancelled":
+                    continue
+                payload = dict(job["_input"])
             _set(job_id, status="running", stage="starting")
 
             def progress(stage: str, frac: float, _id=job_id) -> None:

@@ -906,21 +906,61 @@ function closeTxModal(){$('txModal').classList.remove('show');}
 $('txCancel').onclick=closeTxModal;
 $('txModal').addEventListener('click',e=>{if(e.target.id==='txModal')closeTxModal();});
 $('txStart').onclick=async()=>{
-  const f=$('txFile').files[0];if(!f){toast('Bitte eine Audio-/Videodatei wählen');return;}
-  pendingAudioFile=f;  // keep it to auto-load into the player once transcription finishes
-  const fd=new FormData();fd.append('audio',f);fd.append('model',$('txModel').value);
-  fd.append('language',$('txLang').value.trim());fd.append('diarize',$('txDiar').checked?'true':'false');
-  fd.append('device',$('txDevice').value);
-  const projId=pendingProjectId||null;
-  if(projId)fd.append('project_id',projId);
-  closeTxModal();showJobBanner('Lade „'+f.name+'" hoch…',0.02,false);
-  let jobId;
-  try{const r=await fetch('/api/transcribe',{method:'POST',body:fd});if(!r.ok)throw new Error('Upload fehlgeschlagen ('+r.status+')');jobId=(await r.json()).job_id;}
-  catch(err){showJobBanner('Fehler: '+err.message,0,true);return;}
-  txJobs.push({jobId,projectId:projId,name:f.name.replace(/\.[^.]+$/,''),stage:'queued',progress:0.02,status:'running'});
-  if(projId&&$('libpanel').classList.contains('show')&&activeProjectId===projId)loadDocs();   // show the live placeholder
-  trackJob(jobId,f.name);
+  const files=[...$('txFile').files];if(!files.length){toast('Bitte mindestens eine Audio-/Videodatei wählen');return;}
+  const projId=pendingProjectId||null;pendingProjectId=null;
+  const model=$('txModel').value,lang=$('txLang').value.trim(),diar=$('txDiar').checked?'true':'false',device=$('txDevice').value;
+  pendingAudioFile=files.length===1?files[0]:null;  // auto-load audio only for a single file
+  closeTxModal();showJobBanner('Lade '+files.length+' Datei(en) hoch…',null,false);
+  let queued=0;
+  for(const f of files){
+    const fd=new FormData();fd.append('audio',f);fd.append('model',model);fd.append('language',lang);fd.append('diarize',diar);fd.append('device',device);
+    if(projId)fd.append('project_id',projId);
+    try{const r=await fetch('/api/transcribe',{method:'POST',body:fd});if(!r.ok)throw 0;const jobId=(await r.json()).job_id;
+      txJobs.push({jobId,projectId:projId,name:f.name.replace(/\.[^.]+$/,''),stage:'queued',progress:0,status:'queued'});queued++;
+      if(projId&&$('libpanel').classList.contains('show')&&activeProjectId===projId)loadDocs();
+    }catch(_){toast('Upload fehlgeschlagen: '+f.name);}
+  }
+  if(!queued){hideJobBanner();return;}
+  startTxPoll();
 };
+
+/* batch transcription: poll all in-flight jobs, drive placeholders + banner, queue runs sequentially server-side */
+let _txPoll=null,_txStartedAt={};
+function activeTx(){return txJobs.filter(j=>j.status==='queued'||j.status==='running');}
+function startTxPoll(){if(_txPoll)return;_txPoll=setInterval(pollTx,1200);pollTx();}
+function stopTxPoll(){if(_txPoll){clearInterval(_txPoll);_txPoll=null;}}
+async function pollTx(){
+  const act=activeTx();
+  if(!act.length){stopTxPoll();hideJobBanner();return;}
+  let changedPid=null;
+  for(const j of act){
+    let job;try{const r=await fetch('/api/jobs/'+j.jobId,{cache:'no-store'});if(!r.ok)continue;job=await r.json();}catch(_){continue;}
+    if(job.status==='done'){await finishTx(j);changedPid=j.projectId;continue;}
+    if(job.status==='error'){txJobs=txJobs.filter(t=>t.jobId!==j.jobId);toast('„'+j.name+'" fehlgeschlagen'+(job.error?': '+job.error:''));changedPid=j.projectId;continue;}
+    const prev=j.status;j.status=job.status;j.stage=job.stage;j.progress=job.progress;
+    if(prev!==job.status)changedPid=j.projectId; else syncTxJob(j.jobId,job);
+  }
+  if(changedPid!=null&&$('libpanel').classList.contains('show')&&activeProjectId===changedPid)loadDocs();
+  const run=txJobs.find(j=>j.status==='running'),q=txJobs.filter(j=>j.status==='queued').length;
+  if(run){
+    if(run.stage==='transcribe'&&run.progress>0){
+      if(!_txStartedAt[run.jobId])_txStartedAt[run.jobId]=Date.now();
+      const el=(Date.now()-_txStartedAt[run.jobId])/1000;let eta='';
+      if(run.progress>0.03&&el>2)eta=' · noch '+fmtDur(el/run.progress*(1-run.progress));
+      showJobBanner('„'+run.name+'" — Transkription '+Math.round(run.progress*100)+'%'+eta+(q?' · '+q+' in Warteschlange':''),run.progress,false);
+    }else showJobBanner('„'+run.name+'" — '+(STAGE_LABEL[run.stage]||run.stage)+(q?' · '+q+' in Warteschlange':''),null,false);
+  }else if(q)showJobBanner(q+' Transkription(en) in Warteschlange…',null,false);else hideJobBanner();
+}
+async function finishTx(j){
+  txJobs=txJobs.filter(t=>t.jobId!==j.jobId);
+  let res=null;try{res=await (await fetch('/api/jobs/'+j.jobId+'/result')).json();}catch(_){}
+  await loadProjects();
+  if($('libpanel').classList.contains('show')&&activeProjectId===j.projectId)loadDocs();
+  const dev=res&&res.device?' · '+res.device.toUpperCase():'';const last=activeTx().length===0;
+  if(res&&res.document_id&&!serverDoc&&last){await openServerDocument(res.document_id);if(pendingAudioFile){loadMedia(pendingAudioFile);pendingAudioFile=null;}}
+  else if(res&&!res.document_id&&res.text&&!serverDoc&&last){loadTranscript(res.text,(res.name||j.name||'transkript')+'.txt');if(pendingAudioFile){loadMedia(pendingAudioFile);pendingAudioFile=null;}}
+  toast('Transkript fertig: „'+j.name+'"'+dev);
+}
 function syncTxJob(jobId,job){
   const ent=txJobs.find(t=>t.jobId===jobId);if(!ent)return;
   if(job.stage)ent.stage=job.stage;
@@ -1177,15 +1217,21 @@ function renderLibrary(){
 async function loadDocs(){const pid=activeProjectId;let docs=[];
   try{docs=await (await fetch('/api/projects/'+pid+'/documents',{cache:'no-store'})).json();}catch(_){}
   const el=$('docList');if(!el)return;
-  const jobs=txJobs.filter(j=>j.projectId===pid&&j.status==='running');
-  const ph=jobs.map(j=>`<div class="lrow txrow" id="txrow-${j.jobId}" data-txjob="${j.jobId}" title="Live-Fortschritt anzeigen">`+
-    `<span class="ltitle">${ic('mic')} ${esc(j.name)}</span>`+
-    `<span class="lmeta txstage">${(j.stage==='transcribe'&&j.progress)?Math.round(j.progress*100)+'%':(STAGE_LABEL[j.stage]||j.stage||'läuft…')}</span>`+
-    `<div class="txbar"><div class="txfill" style="width:${Math.round(clamp(j.progress||0.02,0,1)*100)}%"></div></div></div>`).join('');
+  const jobs=txJobs.filter(j=>(j.status==='queued'||j.status==='running')&&j.projectId===pid);
+  const ph=jobs.map(j=>{const run=j.status==='running';
+    return `<div class="lrow txrow${run?'':' queued'}" id="txrow-${j.jobId}" data-txjob="${j.jobId}" title="${run?'Transkription läuft':'In Warteschlange'}">`+
+      `<span class="ltitle">${ic('mic')} ${esc(j.name)}</span>`+
+      `<span class="lmeta txstage">${run?((j.stage==='transcribe'&&j.progress)?Math.round(j.progress*100)+'%':(STAGE_LABEL[j.stage]||j.stage||'läuft…')):'Warteschlange'}</span>`+
+      (run?'':`<button class="txcancel" data-txcancel="${j.jobId}" title="Aus der Warteschlange entfernen">${ic('x')}</button>`)+
+      `<div class="txbar"><div class="txfill" style="width:${Math.round(clamp(j.progress||(run?0.02:0),0,1)*100)}%"></div></div></div>`;}).join('');
   const rows=docs.map(d=>`<div class="lrow${serverDoc&&serverDoc.id===d.id?' active':''}" data-doc="${d.id}"><span class="ltitle">${esc(d.name)}</span><span class="lmeta">${d.segments} Zeilen</span></div>`).join('');
   el.innerHTML=(ph+rows)||'<div class="lempty">Noch keine Dokumente. Transkribiere oder importiere eines.</div>';
   el.querySelectorAll('[data-doc]').forEach(x=>x.onclick=()=>openServerDocument(x.dataset.doc));
-  el.querySelectorAll('[data-txjob]').forEach(x=>x.onclick=()=>{const j=txJobs.find(t=>t.jobId===x.dataset.txjob);if(j){trackJob(j.jobId,j.name);toast('Transkription läuft — Fortschritt oben & hier');}});
+  el.querySelectorAll('[data-txcancel]').forEach(x=>x.onclick=async(e)=>{e.stopPropagation();const id=x.dataset.txcancel;
+    try{const r=await fetch('/api/jobs/'+id+'/cancel',{method:'POST'});const d=await r.json().catch(()=>({}));
+      if(r.ok&&d.cancelled){txJobs=txJobs.filter(t=>t.jobId!==id);loadDocs();toast('Aus der Warteschlange entfernt');}
+      else toast('Läuft bereits – nicht mehr abbrechbar');}catch(_){toast('Abbrechen fehlgeschlagen');}});
+  el.querySelectorAll('[data-txjob]').forEach(x=>x.onclick=()=>toast('Transkription läuft – Fortschritt oben & hier'));
 }
 async function createProjectFlow(){const name=await uiPrompt('Name des neuen Projekts:','',{title:'Neues Projekt'});if(!name||!name.trim())return;
   fetch('/api/projects',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name.trim()})})

@@ -167,6 +167,12 @@ def job_status(job_id: str):
     return job
 
 
+@app.post("/api/jobs/{job_id}/cancel")
+def job_cancel(job_id: str, user: db.User = Depends(auth.require_user)):
+    """Cancel a still-queued transcription/coding job (one that hasn't started)."""
+    return jobs.cancel_job(job_id)
+
+
 @app.get("/api/jobs/{job_id}/result")
 def job_result(job_id: str):
     job = jobs.get_job(job_id)

@@ -136,8 +136,8 @@
 <!-- transcribe options modal (backend mode) -->
 <div id="txModal"><div class="card">
   <h2><svg class="ic" style="width:20px;height:20px"><use href="#i-mic"/></svg> Aufnahme transkribieren</h2>
-  <p class="hint">Audio/Video auswählen — wird auf dem Server transkribiert (Whisper) und ggf. nach Sprechern getrennt (Diarization). Das Ergebnis öffnet danach direkt hier.</p>
-  <div class="txrow"><label>Datei</label><input type="file" id="txFile" accept="audio/*,video/*"></div>
+  <p class="hint">Audio/Video auswählen (auch mehrere) — wird auf dem Server transkribiert (Whisper) und ggf. nach Sprechern getrennt (Diarization). Bei mehreren Dateien werden alle als Platzhalter angelegt und nacheinander abgearbeitet; noch nicht gestartete kannst du in der Liste abbrechen.</p>
+  <div class="txrow"><label>Datei(en)</label><input type="file" id="txFile" accept="audio/*,video/*" multiple></div>
   <div class="txrow"><label>Modell</label>
     <select id="txModel">
       <option value="tiny">tiny (schnell, grob)</option>
